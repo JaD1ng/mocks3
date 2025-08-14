@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  # 基础设施服务
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    command: consul agent -dev -client=0.0.0.0
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    volumes:
+      - consul-data:/consul/data
+    networks:
+      - micro-s3-net
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_DB: micro_s3
+      POSTGRES_USER: micro_s3
+      POSTGRES_PASSWORD: micro_s3_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - micro-s3-net
+
+  redis-cache:
+    image: redis:alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-cache-data:/data
+    networks:
+      - micro-s3-net
+
+  redis-queue:
+    image: redis:alpine
+    container_name: redis-queue
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-queue-data:/data
+    networks:
+      - micro-s3-net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - micro-s3-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/config:/etc/prometheus
+      - prometheus-data:/prometheus
+    networks:
+      - micro-s3-net
+
+  # 微服务
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - s3-api
+      - admin-api
+      - metadata
+      - storage
+      - task-processor
+      - chaos-engineering
+    networks:
+      - micro-s3-net
+
+  s3-api:
+    build:
+      context: .
+      dockerfile: ./services/s3-api/Dockerfile
+    container_name: s3-api
+    environment:
+      - PORT=8080
+      - SERVICE_NAME=s3-api
+      - SERVICE_ADDRESS=s3-api
+      - CONSUL_ADDRESS=consul:8500
+      - METADATA_SERVICE_URL=http://metadata:8081
+      - STORAGE_SERVICE_URL=http://storage:8082
+      - TASK_SERVICE_URL=http://task-processor:8083
+    depends_on:
+      - consul
+      - metadata
+      - storage
+      - task-processor
+    networks:
+      - micro-s3-net
+
+  metadata:
+    build:
+      context: .
+      dockerfile: ./services/metadata/Dockerfile
+    container_name: metadata
+    environment:
+      - PORT=8081
+      - SERVICE_NAME=metadata
+      - SERVICE_ADDRESS=metadata
+      - CONSUL_ADDRESS=consul:8500
+      - POSTGRES_URL=postgres://micro_s3:micro_s3_password@postgres:5432/micro_s3
+      - REDIS_CACHE_URL=redis://redis-cache:6379
+    depends_on:
+      - consul
+      - postgres
+      - redis-cache
+    networks:
+      - micro-s3-net
+
+  storage:
+    build:
+      context: .
+      dockerfile: ./services/storage/Dockerfile
+    container_name: storage
+    environment:
+      - PORT=8082
+      - SERVICE_NAME=storage
+      - SERVICE_ADDRESS=storage
+      - CONSUL_ADDRESS=consul:8500
+    volumes:
+      - storage-data:/data
+    depends_on:
+      - consul
+    networks:
+      - micro-s3-net
+
+  task-processor:
+    build:
+      context: .
+      dockerfile: ./services/task-processor/Dockerfile
+    container_name: task-processor
+    environment:
+      - PORT=8083
+      - SERVICE_NAME=task-processor
+      - SERVICE_ADDRESS=task-processor
+      - CONSUL_ADDRESS=consul:8500
+      - REDIS_QUEUE_URL=redis://redis-queue:6379
+      - STORAGE_SERVICE_URL=http://storage:8082
+    depends_on:
+      - consul
+      - redis-queue
+      - storage
+    networks:
+      - micro-s3-net
+
+  chaos-engineering:
+    build:
+      context: .
+      dockerfile: ./services/chaos-engineering/Dockerfile
+    container_name: chaos-engineering
+    environment:
+      - PORT=8084
+      - SERVICE_NAME=chaos-engineering
+      - SERVICE_ADDRESS=chaos-engineering
+      - CONSUL_ADDRESS=consul:8500
+    depends_on:
+      - consul
+    networks:
+      - micro-s3-net
+
+  admin-api:
+    build:
+      context: .
+      dockerfile: ./services/admin-api/Dockerfile
+    container_name: admin-api
+    environment:
+      - PORT=8090
+      - SERVICE_NAME=admin-api
+      - SERVICE_ADDRESS=admin-api
+      - CONSUL_ADDRESS=consul:8500
+      - METADATA_SERVICE_URL=http://metadata:8081
+      - STORAGE_SERVICE_URL=http://storage:8082
+      - TASK_SERVICE_URL=http://task-processor:8083
+      - CHAOS_SERVICE_URL=http://chaos-engineering:8084
+    depends_on:
+      - consul
+      - metadata
+      - storage
+      - task-processor
+      - chaos-engineering
+    networks:
+      - micro-s3-net
+
+networks:
+  micro-s3-net:
+    driver: bridge
+
+volumes:
+  consul-data:
+  postgres-data:
+  redis-cache-data:
+  redis-queue-data:
+  elasticsearch-data:
+  prometheus-data:
+  storage-data:

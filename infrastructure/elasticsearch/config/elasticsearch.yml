@@ -1,0 +1,42 @@
+# 集群配置
+cluster.name: micro-s3-logs
+
+# 节点配置
+node.name: micro-s3-node-1
+node.roles: [master, data, ingest]
+
+# 网络配置
+network.host: 0.0.0.0
+http.port: 9200
+
+# 发现配置
+discovery.type: single-node
+
+# 安全配置
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.security.http.ssl.enabled: false
+xpack.security.transport.ssl.enabled: false
+
+# 内存配置
+bootstrap.memory_lock: false
+
+# 日志级别
+logger.root: INFO
+
+# 索引配置
+action.destructive_requires_name: true
+
+# 模板配置
+index.template.mapping.total_fields.limit: 2000
+
+# 线程池配置
+thread_pool.write.queue_size: 1000
+thread_pool.search.queue_size: 1000
+
+# HTTP 配置
+http.max_content_length: 100mb
+
+# 路径配置
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs

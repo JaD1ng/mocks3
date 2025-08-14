@@ -1,0 +1,46 @@
+{
+  "datacenter": "micro-s3-dc",
+  "data_dir": "/consul/data",
+  "log_level": "INFO",
+  "node_name": "consul-server-1",
+  "server": true,
+  "bootstrap": true,
+  "ui_config": {
+    "enabled": true
+  },
+  "bind_addr": "0.0.0.0",
+  "client_addr": "0.0.0.0",
+  "retry_join": [],
+  "connect": {
+    "enabled": true
+  },
+  "ports": {
+    "grpc": 8502,
+    "http": 8500,
+    "https": -1,
+    "serf_lan": 8301,
+    "serf_wan": 8302,
+    "server": 8300
+  },
+  "acl": {
+    "enabled": false,
+    "default_policy": "allow"
+  },
+  "services": [
+    {
+      "id": "consul",
+      "name": "consul",
+      "tags": ["infrastructure"],
+      "address": "consul",
+      "port": 8500,
+      "check": {
+        "http": "http://consul:8500/v1/status/leader",
+        "interval": "10s"
+      }
+    }
+  ],
+  "telemetry": {
+    "prometheus_retention_time": "30s",
+    "disable_hostname": true
+  }
+}
