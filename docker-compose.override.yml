@@ -1,0 +1,77 @@
+version: '3.8'
+
+# 开发环境覆盖配置
+
+services:
+  # 开发模式下的服务配置调整
+  s3-api:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./logs:/var/log/app
+
+  metadata:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./logs:/var/log/app
+
+  storage:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./logs:/var/log/app
+      - ./data:/data
+
+  task-processor:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - WORKER_COUNT=2
+    volumes:
+      - ./logs:/var/log/app
+
+  chaos-engineering:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./logs:/var/log/app
+
+  admin-api:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./logs:/var/log/app
+
+  # 开发工具
+  postgres-admin:
+    image: adminer
+    container_name: postgres-admin
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - micro-s3-net
+    profiles:
+      - dev-tools
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      - REDIS_HOSTS=cache:redis-cache:6379,queue:redis-queue:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis-cache
+      - redis-queue
+    networks:
+      - micro-s3-net
+    profiles:
+      - dev-tools
