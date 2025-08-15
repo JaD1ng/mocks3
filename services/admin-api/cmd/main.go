@@ -6,12 +6,14 @@ import (
 	"mocks3/services/admin-api/internal/client"
 	"mocks3/services/admin-api/internal/config"
 	"mocks3/services/admin-api/internal/handler"
-	"github.com/mocks3/shared/logger"
+
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"mocks3/shared/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/consul/api"

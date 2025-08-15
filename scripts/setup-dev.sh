@@ -45,21 +45,21 @@ fi
 echo ""
 echo "🔧 创建必要的目录和文件..."
 
-# 创建数据目录
-mkdir -p data/stg1 data/stg2 data/stg3
-mkdir -p data/postgres data/consul data/redis-cache data/redis-queue
-mkdir -p data/elasticsearch data/prometheus
-mkdir -p logs
+# 创建数据目录（在项目根目录）
+mkdir -p ../data/stg1 ../data/stg2 ../data/stg3
+mkdir -p ../data/postgres ../data/consul ../data/redis-cache ../data/redis-queue
+mkdir -p ../data/elasticsearch ../data/prometheus
+mkdir -p ../logs
 
 echo -e "${GREEN}✓ 数据目录已创建${NC}"
 
 # 设置权限
-chmod -R 755 data/
-chmod -R 755 logs/
+chmod -R 755 ../data/
+chmod -R 755 ../logs/
 
-# 创建环境变量文件
-if [ ! -f .env ]; then
-    cat > .env << 'EOF'
+# 创建环境变量文件（在项目根目录）
+if [ ! -f ../.env ]; then
+    cat > ../.env << 'EOF'
 # 微服务环境变量配置
 
 # 基础设置
@@ -100,7 +100,7 @@ DEBUG=false
 EOF
     echo -e "${GREEN}✓ 环境配置文件 .env 已创建${NC}"
 else
-    echo -e "${YELLOW}! .env 文件已存在，跳过${NC}"
+    echo -e "${YELLOW}! ../.env 文件已存在，跳过${NC}"
 fi
 
 echo ""
@@ -147,9 +147,9 @@ done
 echo ""
 echo "📝 创建开发配置文件..."
 
-# 创建开发用的 docker-compose override 文件
-if [ ! -f docker-compose.override.yml ]; then
-    cat > docker-compose.override.yml << 'EOF'
+# 创建开发用的 docker-compose override 文件（在项目根目录）
+if [ ! -f ../docker-compose.override.yml ]; then
+    cat > ../docker-compose.override.yml << 'EOF'
 version: '3.8'
 
 # 开发环境覆盖配置
@@ -230,15 +230,15 @@ services:
 EOF
     echo -e "${GREEN}✓ 开发配置文件已创建${NC}"
 else
-    echo -e "${YELLOW}! docker-compose.override.yml 已存在，跳过${NC}"
+    echo -e "${YELLOW}! ../docker-compose.override.yml 已存在，跳过${NC}"
 fi
 
 echo ""
 echo "📚 创建开发文档..."
 
-# 创建开发指南
-if [ ! -f DEVELOPMENT.md ]; then
-    cat > DEVELOPMENT.md << 'EOF'
+# 创建开发指南（在项目根目录）
+if [ ! -f ../DEVELOPMENT.md ]; then
+    cat > ../DEVELOPMENT.md << 'EOF'
 # 开发指南
 
 ## 快速开始
@@ -317,7 +317,7 @@ make clean
 EOF
     echo -e "${GREEN}✓ 开发文档已创建${NC}"
 else
-    echo -e "${YELLOW}! DEVELOPMENT.md 已存在，跳过${NC}"
+    echo -e "${YELLOW}! ../DEVELOPMENT.md 已存在，跳过${NC}"
 fi
 
 echo ""

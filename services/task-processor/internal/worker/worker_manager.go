@@ -3,11 +3,11 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/mocks3/shared/logger"
-	"github.com/mocks3/shared/utils"
+	"mocks3/shared/logger"
+	"mocks3/shared/utils"
 	"sync"
-	"task-processor/internal/processor"
-	"task-processor/internal/queue"
+	"mocks3/services/task-processor/internal/processor"
+	"mocks3/services/task-processor/internal/queue"
 	"time"
 )
 

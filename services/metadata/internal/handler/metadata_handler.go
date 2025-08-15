@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"metadata/internal/db"
-	"github.com/mocks3/shared/logger"
+	"mocks3/services/metadata/internal/db"
+	"mocks3/shared/logger"
 	"net/http"
 	"strconv"
 	"time"

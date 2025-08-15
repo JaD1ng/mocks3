@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"net/http"
 	"os"
 	"os/signal"
-	"storage/internal/config"
-	"storage/internal/handler"
-	"storage/internal/nodes"
+	"mocks3/services/storage/internal/config"
+	"mocks3/services/storage/internal/handler"
+	"mocks3/services/storage/internal/nodes"
 	"syscall"
 	"time"
 

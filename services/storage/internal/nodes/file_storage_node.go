@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mocks3/shared/utils"
+	"mocks3/shared/utils"
 )
 
 // FileObject 文件对象

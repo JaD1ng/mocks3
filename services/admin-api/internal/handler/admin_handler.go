@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"admin-api/internal/client"
+	"mocks3/services/admin-api/internal/client"
 	"context"
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"net/http"
 	"strconv"
 	"time"

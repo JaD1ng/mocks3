@@ -3,8 +3,8 @@ package rules
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mocks3/shared/logger"
-	"github.com/mocks3/shared/utils"
+	"mocks3/shared/logger"
+	"mocks3/shared/utils"
 	"os"
 	"path/filepath"
 	"sync"

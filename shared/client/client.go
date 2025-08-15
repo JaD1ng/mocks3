@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"shared/types"
+	"mocks3/shared/types"
 	"time"
 )
 

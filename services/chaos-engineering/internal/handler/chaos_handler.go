@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"chaos-engineering/internal/injector"
-	"chaos-engineering/internal/rules"
+	"mocks3/services/chaos-engineering/internal/injector"
+	"mocks3/services/chaos-engineering/internal/rules"
 	"net/http"
 	"strconv"
 	"time"

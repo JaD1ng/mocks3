@@ -3,7 +3,7 @@ package nodes
 import (
 	"fmt"
 	"math/rand"
-	"github.com/mocks3/shared/utils"
+	"mocks3/shared/utils"
 	"time"
 )
 

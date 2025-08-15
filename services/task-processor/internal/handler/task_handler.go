@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"github.com/mocks3/shared/utils"
+	"mocks3/shared/utils"
 	"net/http"
-	"task-processor/internal/queue"
-	"task-processor/internal/worker"
+	"mocks3/services/task-processor/internal/queue"
+	"mocks3/services/task-processor/internal/worker"
 	"time"
 
 	"github.com/gin-gonic/gin"

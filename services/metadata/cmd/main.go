@@ -6,7 +6,7 @@ import (
 	"mocks3/services/metadata/internal/config"
 	"mocks3/services/metadata/internal/db"
 	"mocks3/services/metadata/internal/handler"
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"net/http"
 	"os"
 	"os/signal"

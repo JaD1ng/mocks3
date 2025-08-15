@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"net/http"
-	"storage/internal/nodes"
+	"mocks3/services/storage/internal/nodes"
 	"time"
 
 	"github.com/gin-gonic/gin"

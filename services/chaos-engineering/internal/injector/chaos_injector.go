@@ -1,11 +1,11 @@
 package injector
 
 import (
-	"chaos-engineering/internal/rules"
+	"mocks3/services/chaos-engineering/internal/rules"
 	"context"
 	"fmt"
 	"math/rand"
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"os"
 	"runtime"
 	"sync"

@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/JaD1ng/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"time"
 
 	"github.com/gin-gonic/gin"

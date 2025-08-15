@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"net/http"
 	"time"
 )

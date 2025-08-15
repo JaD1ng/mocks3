@@ -3,9 +3,9 @@ package processor
 import (
 	"context"
 	"fmt"
-	"github.com/mocks3/shared/logger"
-	"task-processor/internal/client"
-	"task-processor/internal/queue"
+	"mocks3/shared/logger"
+	"mocks3/services/task-processor/internal/client"
+	"mocks3/services/task-processor/internal/queue"
 	"time"
 )
 

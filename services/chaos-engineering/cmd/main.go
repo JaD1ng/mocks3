@@ -7,7 +7,7 @@ import (
 	"mocks3/services/chaos-engineering/internal/handler"
 	"mocks3/services/chaos-engineering/internal/injector"
 	"mocks3/services/chaos-engineering/internal/rules"
-	"github.com/mocks3/shared/logger"
+	"mocks3/shared/logger"
 	"net/http"
 	"os"
 	"os/signal"
