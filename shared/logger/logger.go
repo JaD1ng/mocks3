@@ -235,3 +235,71 @@ var DefaultLogger = NewLogger(LoggingConfig{
 	Format: "json",
 	Output: []string{"stdout"},
 })
+
+// 全局函数，直接使用默认logger
+func Info(message string, fields ...map[string]any) {
+	var f map[string]any
+	if len(fields) > 0 {
+		f = fields[0]
+	}
+	DefaultLogger.Info(context.Background(), message, f)
+}
+
+func Error(message string, err error, fields ...map[string]any) {
+	var f map[string]any
+	if len(fields) > 0 {
+		f = fields[0]
+	}
+	DefaultLogger.Error(context.Background(), message, err, f)
+}
+
+func Debug(message string, fields ...map[string]any) {
+	var f map[string]any
+	if len(fields) > 0 {
+		f = fields[0]
+	}
+	DefaultLogger.Debug(context.Background(), message, f)
+}
+
+func Warn(message string, fields ...map[string]any) {
+	var f map[string]any
+	if len(fields) > 0 {
+		f = fields[0]
+	}
+	DefaultLogger.Warn(context.Background(), message, f)
+}
+
+// Fatal 记录错误并退出
+func Fatal(message string, err error, fields ...map[string]any) {
+	var f map[string]any
+	if len(fields) > 0 {
+		f = fields[0]
+	}
+	DefaultLogger.Error(context.Background(), message, err, f)
+	os.Exit(1)
+}
+
+// Infof 格式化信息日志
+func Infof(format string, args ...any) {
+	Info(fmt.Sprintf(format, args...))
+}
+
+// Errorf 格式化错误日志
+func Errorf(format string, args ...any) {
+	Error(fmt.Sprintf(format, args...), nil)
+}
+
+// Debugf 格式化调试日志
+func Debugf(format string, args ...any) {
+	Debug(fmt.Sprintf(format, args...))
+}
+
+// Warnf 格式化警告日志
+func Warnf(format string, args ...any) {
+	Warn(fmt.Sprintf(format, args...))
+}
+
+// Fatalf 格式化致命错误日志
+func Fatalf(format string, args ...any) {
+	Fatal(fmt.Sprintf(format, args...), nil)
+}

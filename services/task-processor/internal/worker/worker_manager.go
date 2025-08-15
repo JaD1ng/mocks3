@@ -3,14 +3,12 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/mocks3/shared/logger"
+	"github.com/mocks3/shared/utils"
 	"sync"
-	"time"
-
 	"task-processor/internal/processor"
 	"task-processor/internal/queue"
-
-	"micro-s3/shared/logger"
-	"micro-s3/shared/utils"
+	"time"
 )
 
 // Worker 工作节点
@@ -184,8 +182,8 @@ func (w *Worker) run() {
 			tasks, err := w.queue.ReadTasks(w.ctx, w.ID, 1)
 			if err != nil {
 				w.logger.Error(w.ctx, "Worker failed to read tasks", err, map[string]any{
-				"worker_id": w.ID,
-			})
+					"worker_id": w.ID,
+				})
 				time.Sleep(1 * time.Second)
 				continue
 			}

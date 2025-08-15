@@ -3,17 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"mocks3/services/chaos-engineering/internal/config"
+	"mocks3/services/chaos-engineering/internal/handler"
+	"mocks3/services/chaos-engineering/internal/injector"
+	"mocks3/services/chaos-engineering/internal/rules"
+	"github.com/mocks3/shared/logger"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"chaos-engineering/internal/config"
-	"chaos-engineering/internal/handler"
-	"chaos-engineering/internal/injector"
-	"chaos-engineering/internal/rules"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/consul/api"
@@ -29,7 +28,7 @@ func main() {
 	// 加载默认规则
 	err := ruleManager.LoadDefaultRules()
 	if err != nil {
-		log.Printf("Warning: Failed to load default rules: %v", err)
+		logger.Error("Warning: Failed to load default rules", err)
 	}
 
 	// 初始化故障注入器
@@ -38,13 +37,13 @@ func main() {
 	// 启动故障注入器
 	err = chaosInjector.Start()
 	if err != nil {
-		log.Fatalf("Failed to start chaos injector: %v", err)
+		logger.Fatal("Failed to start chaos injector", err)
 	}
 
 	// 连接 Consul
 	consulClient, err := connectConsul(cfg.ConsulAddress)
 	if err != nil {
-		log.Fatalf("Failed to connect to Consul: %v", err)
+		logger.Fatal("Failed to connect to Consul", err)
 	}
 
 	// 创建 Gin 引擎
@@ -74,7 +73,7 @@ func main() {
 	serviceID := fmt.Sprintf("%s-%d", cfg.ServiceName, time.Now().Unix())
 	err = registerService(consulClient, cfg, serviceID)
 	if err != nil {
-		log.Fatalf("Failed to register service: %v", err)
+		logger.Fatal("Failed to register service", err)
 	}
 
 	// 创建 HTTP 服务器
@@ -85,9 +84,9 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		log.Printf("混沌工程服务启动在端口 %d", cfg.Port)
+		logger.Infof("混沌工程服务启动在端口 %d", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("服务启动失败: %v", err)
+			logger.Fatal("服务启动失败", err)
 		}
 	}()
 
@@ -96,7 +95,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("正在关闭混沌工程服务...")
+	logger.Info("正在关闭混沌工程服务...")
 
 	// 停止故障注入器
 	chaosInjector.Stop()
@@ -104,7 +103,7 @@ func main() {
 	// 注销服务
 	err = consulClient.Agent().ServiceDeregister(serviceID)
 	if err != nil {
-		log.Printf("Failed to deregister service: %v", err)
+		logger.Error("Failed to deregister service", err)
 	}
 
 	// 关闭服务器
@@ -112,10 +111,10 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("服务关闭失败: %v", err)
+		logger.Fatal("服务关闭失败", err)
 	}
 
-	log.Println("混沌工程服务已关闭")
+	logger.Info("混沌工程服务已关闭")
 }
 
 // setupRoutes 设置路由

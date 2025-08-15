@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"micro-s3/shared/types"
 	"net/http"
+	"shared/types"
 	"time"
 )
 

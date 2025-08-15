@@ -3,7 +3,7 @@ package nodes
 import (
 	"context"
 	"fmt"
-	"micro-s3/shared/logger"
+	"github.com/mocks3/shared/logger"
 )
 
 // StorageNode 存储节点接口

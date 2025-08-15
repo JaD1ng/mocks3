@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mocks3/shared/logger"
 	"net/http"
 	"time"
 )
@@ -121,7 +122,7 @@ func (c *StorageClient) NotifyTaskCompletion(ctx context.Context, taskType strin
 	// 通知失败不应该影响主要流程
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		// 只记录警告，不返回错误
-		fmt.Printf("Warning: Task completion notification failed with HTTP %d\n", resp.StatusCode)
+		logger.Warnf("Task completion notification failed with HTTP %d", resp.StatusCode)
 	}
 
 	return nil

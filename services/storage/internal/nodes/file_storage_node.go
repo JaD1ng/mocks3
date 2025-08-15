@@ -1,13 +1,14 @@
 package nodes
 
 import (
-	"micro-s3/shared/utils"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/mocks3/shared/utils"
 )
 
 // FileObject 文件对象
@@ -51,7 +52,7 @@ func (n *FileStorageNode) Write(obj *FileObject) error {
 
 	// 构建文件路径
 	filePath := n.buildFilePath(obj.Key)
-	
+
 	// 确保目录存在
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, 0755)
@@ -81,7 +82,7 @@ func (n *FileStorageNode) Write(obj *FileObject) error {
 // Read 读取文件对象
 func (n *FileStorageNode) Read(key string) (*FileObject, error) {
 	filePath := n.buildFilePath(key)
-	
+
 	// 检查文件是否存在
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -121,7 +122,7 @@ func (n *FileStorageNode) Read(key string) (*FileObject, error) {
 // Delete 删除文件对象
 func (n *FileStorageNode) Delete(key string) error {
 	filePath := n.buildFilePath(key)
-	
+
 	err := os.Remove(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -146,7 +147,7 @@ func (n *FileStorageNode) GetNodeID() string {
 func (n *FileStorageNode) GetStatus() *NodeStatus {
 	capacity, used := n.getDiskUsage()
 	health := "healthy"
-	
+
 	// 简单的健康检查
 	if used > int64(float64(capacity)*0.9) { // 使用率超过 90%
 		health = "warning"
@@ -223,12 +224,12 @@ func (n *FileStorageNode) cleanupEmptyDirs(dir string) {
 // ListFiles 列出节点中的所有文件（用于调试）
 func (n *FileStorageNode) ListFiles() ([]string, error) {
 	var files []string
-	
+
 	err := filepath.WalkDir(n.rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if !d.IsDir() {
 			// 转换为相对于根目录的路径
 			relPath, err := filepath.Rel(n.rootPath, path)
@@ -237,9 +238,9 @@ func (n *FileStorageNode) ListFiles() ([]string, error) {
 			}
 			files = append(files, relPath)
 		}
-		
+
 		return nil
 	})
-	
+
 	return files, err
 }

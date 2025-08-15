@@ -1,11 +1,10 @@
 package handler
 
 import (
+	"github.com/mocks3/shared/logger"
 	"net/http"
-	"time"
-
-	"micro-s3/shared/logger"
 	"storage/internal/nodes"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )

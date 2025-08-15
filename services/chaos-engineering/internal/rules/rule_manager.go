@@ -3,14 +3,12 @@ package rules
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"github.com/mocks3/shared/logger"
+	"github.com/mocks3/shared/utils"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"micro-s3/shared/utils"
 )
 
 // ChaosRule 混沌工程规则
@@ -58,7 +56,7 @@ func (rm *RuleManager) AddRule(rule *ChaosRule) error {
 	defer rm.mu.Unlock()
 
 	rm.rules[rule.ID] = rule
-	log.Printf("Added chaos rule: %s (%s)", rule.Name, rule.ID)
+	logger.Infof("Added chaos rule: %s (%s)", rule.Name, rule.ID)
 
 	return nil
 }
@@ -116,7 +114,7 @@ func (rm *RuleManager) UpdateRule(id string, updates *ChaosRule) error {
 	}
 
 	rule.UpdatedAt = time.Now()
-	log.Printf("Updated chaos rule: %s", rule.Name)
+	logger.Infof("Updated chaos rule: %s", rule.Name)
 
 	return nil
 }
@@ -132,7 +130,7 @@ func (rm *RuleManager) DeleteRule(id string) error {
 	}
 
 	delete(rm.rules, id)
-	log.Printf("Deleted chaos rule: %s", rule.Name)
+	logger.Infof("Deleted chaos rule: %s", rule.Name)
 
 	return nil
 }
@@ -162,7 +160,7 @@ func (rm *RuleManager) EnableRule(id string) error {
 
 	rule.Enabled = true
 	rule.UpdatedAt = time.Now()
-	log.Printf("Enabled chaos rule: %s", rule.Name)
+	logger.Infof("Enabled chaos rule: %s", rule.Name)
 
 	return nil
 }
@@ -179,7 +177,7 @@ func (rm *RuleManager) DisableRule(id string) error {
 
 	rule.Enabled = false
 	rule.UpdatedAt = time.Now()
-	log.Printf("Disabled chaos rule: %s", rule.Name)
+	logger.Infof("Disabled chaos rule: %s", rule.Name)
 
 	return nil
 }
@@ -216,98 +214,137 @@ func (rm *RuleManager) MarkRuleExecuted(id string) error {
 }
 
 // LoadDefaultRules 加载默认规则
+// 返回: 错误信息，成功时为nil
 func (rm *RuleManager) LoadDefaultRules() error {
-	defaultRules := []*ChaosRule{
-		{
-			Name:        "网络超时故障",
-			Description: "模拟网络请求超时",
-			Service:     "*",
-			FailureType: "network_timeout",
-			FailureRate: 0.05, // 5% 概率
-			Duration:    "30s",
-			Enabled:     false,
-			Config: map[string]any{
-				"timeout_ms": 5000,
-				"delay_ms":   1000,
-			},
-		},
-		{
-			Name:        "内存泄漏故障",
-			Description: "模拟内存逐渐泄漏",
-			Service:     "storage",
-			FailureType: "memory_leak",
-			FailureRate: 0.1, // 10% 概率
-			Duration:    "5m",
-			Enabled:     false,
-			Config: map[string]any{
-				"start_memory_mb": 100,
-				"increment_mb":    10,
-				"interval_sec":    30,
-				"max_memory_mb":   500,
-			},
-		},
-		{
-			Name:        "CPU 高负载",
-			Description: "模拟 CPU 使用率飙升",
-			Service:     "metadata",
-			FailureType: "cpu_spike",
-			FailureRate: 0.08, // 8% 概率
-			Duration:    "2m",
-			Enabled:     false,
-			Config: map[string]any{
-				"cpu_percent": 90,
-				"threads":     4,
-			},
-		},
-		{
-			Name:        "数据库连接故障",
-			Description: "模拟数据库连接异常",
-			Service:     "metadata",
-			FailureType: "database_error",
-			FailureRate: 0.03, // 3% 概率
-			Duration:    "1m",
-			Enabled:     false,
-			Config: map[string]any{
-				"error_types": []string{"connection_timeout", "deadlock", "connection_refused"},
-			},
-		},
-		{
-			Name:        "磁盘空间不足",
-			Description: "模拟磁盘空间耗尽",
-			Service:     "storage",
-			FailureType: "disk_full",
-			FailureRate: 0.02, // 2% 概率
-			Duration:    "3m",
-			Enabled:     false,
-			Config: map[string]any{
-				"free_space_mb": 10,
-				"fill_speed":    "fast",
-			},
-		},
-		{
-			Name:        "服务响应延迟",
-			Description: "模拟服务响应变慢",
-			Service:     "s3-api",
-			FailureType: "slow_response",
-			FailureRate: 0.15, // 15% 概率
-			Duration:    "2m",
-			Enabled:     false,
-			Config: map[string]any{
-				"min_delay_ms": 500,
-				"max_delay_ms": 3000,
-			},
-		},
-	}
+	// 获取所有默认规则配置
+	defaultRules := rm.getDefaultRuleConfigs()
 
+	// 批量添加规则
 	for _, rule := range defaultRules {
 		err := rm.AddRule(rule)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to add default rule %s: %w", rule.Name, err)
 		}
 	}
 
-	log.Printf("Loaded %d default chaos rules", len(defaultRules))
+	logger.Infof("Loaded %d default chaos rules", len(defaultRules))
 	return nil
+}
+
+// getDefaultRuleConfigs 获取默认规则配置列表（私有方法）
+// 返回: 默认规则数组
+func (rm *RuleManager) getDefaultRuleConfigs() []*ChaosRule {
+	return []*ChaosRule{
+		rm.createNetworkTimeoutRule(),
+		rm.createMemoryLeakRule(),
+		rm.createCPUSpikeRule(),
+		rm.createDatabaseErrorRule(),
+		rm.createDiskFullRule(),
+		rm.createSlowResponseRule(),
+	}
+}
+
+// createNetworkTimeoutRule 创建网络超时规则
+func (rm *RuleManager) createNetworkTimeoutRule() *ChaosRule {
+	return &ChaosRule{
+		Name:        "网络超时故障",
+		Description: "模拟网络请求超时",
+		Service:     "*",
+		FailureType: "network_timeout",
+		FailureRate: 0.05, // 5% 概率
+		Duration:    "30s",
+		Enabled:     false,
+		Config: map[string]any{
+			"timeout_ms": 5000,
+			"delay_ms":   1000,
+		},
+	}
+}
+
+// createMemoryLeakRule 创建内存泄漏规则
+func (rm *RuleManager) createMemoryLeakRule() *ChaosRule {
+	return &ChaosRule{
+		Name:        "内存泄漏故障",
+		Description: "模拟内存逐渐泄漏",
+		Service:     "storage",
+		FailureType: "memory_leak",
+		FailureRate: 0.1, // 10% 概率
+		Duration:    "5m",
+		Enabled:     false,
+		Config: map[string]any{
+			"start_memory_mb": 100,
+			"increment_mb":    10,
+			"interval_sec":    30,
+			"max_memory_mb":   500,
+		},
+	}
+}
+
+// createCPUSpikeRule 创建CPU高负载规则
+func (rm *RuleManager) createCPUSpikeRule() *ChaosRule {
+	return &ChaosRule{
+		Name:        "CPU 高负载",
+		Description: "模拟 CPU 使用率飙升",
+		Service:     "metadata",
+		FailureType: "cpu_spike",
+		FailureRate: 0.08, // 8% 概率
+		Duration:    "2m",
+		Enabled:     false,
+		Config: map[string]any{
+			"cpu_percent": 90,
+			"threads":     4,
+		},
+	}
+}
+
+// createDatabaseErrorRule 创建数据库错误规则
+func (rm *RuleManager) createDatabaseErrorRule() *ChaosRule {
+	return &ChaosRule{
+		Name:        "数据库连接故障",
+		Description: "模拟数据库连接异常",
+		Service:     "metadata",
+		FailureType: "database_error",
+		FailureRate: 0.03, // 3% 概率
+		Duration:    "1m",
+		Enabled:     false,
+		Config: map[string]any{
+			"error_types": []string{"connection_timeout", "deadlock", "connection_refused"},
+		},
+	}
+}
+
+// createDiskFullRule 创建磁盘空间不足规则
+func (rm *RuleManager) createDiskFullRule() *ChaosRule {
+	return &ChaosRule{
+		Name:        "磁盘空间不足",
+		Description: "模拟磁盘空间耗尽",
+		Service:     "storage",
+		FailureType: "disk_full",
+		FailureRate: 0.02, // 2% 概率
+		Duration:    "3m",
+		Enabled:     false,
+		Config: map[string]any{
+			"free_space_mb": 10,
+			"fill_speed":    "fast",
+		},
+	}
+}
+
+// createSlowResponseRule 创建响应延迟规则
+func (rm *RuleManager) createSlowResponseRule() *ChaosRule {
+	return &ChaosRule{
+		Name:        "服务响应延迟",
+		Description: "模拟服务响应变慢",
+		Service:     "s3-api",
+		FailureType: "slow_response",
+		FailureRate: 0.15, // 15% 概率
+		Duration:    "2m",
+		Enabled:     false,
+		Config: map[string]any{
+			"min_delay_ms": 500,
+			"max_delay_ms": 3000,
+		},
+	}
 }
 
 // SaveRulesToFile 保存规则到文件
@@ -325,7 +362,7 @@ func (rm *RuleManager) SaveRulesToFile(filePath string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filePath, data, 0644)
+	return os.WriteFile(filePath, data, 0644)
 }
 
 // LoadRulesFromFile 从文件加载规则
@@ -334,7 +371,7 @@ func (rm *RuleManager) LoadRulesFromFile(filePath string) error {
 		return nil // 文件不存在，跳过
 	}
 
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -352,7 +389,7 @@ func (rm *RuleManager) LoadRulesFromFile(filePath string) error {
 		rm.rules[rule.ID] = rule
 	}
 
-	log.Printf("Loaded %d chaos rules from file: %s", len(rules), filePath)
+	logger.Infof("Loaded %d chaos rules from file: %s", len(rules), filePath)
 	return nil
 }
 

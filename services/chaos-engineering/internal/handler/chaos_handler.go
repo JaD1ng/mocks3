@@ -1,12 +1,11 @@
 package handler
 
 import (
+	"chaos-engineering/internal/injector"
+	"chaos-engineering/internal/rules"
 	"net/http"
 	"strconv"
 	"time"
-
-	"chaos-engineering/internal/injector"
-	"chaos-engineering/internal/rules"
 
 	"github.com/gin-gonic/gin"
 )

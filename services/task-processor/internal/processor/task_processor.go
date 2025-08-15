@@ -3,11 +3,10 @@ package processor
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"micro-s3/shared/logger"
+	"github.com/mocks3/shared/logger"
 	"task-processor/internal/client"
 	"task-processor/internal/queue"
+	"time"
 )
 
 // TaskProcessor 任务处理器

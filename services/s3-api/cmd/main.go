@@ -3,17 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"mocks3/services/s3-api/internal/client"
+	"mocks3/services/s3-api/internal/config"
+	"mocks3/services/s3-api/internal/handler"
+	"github.com/mocks3/shared/logger"
+	"github.com/mocks3/shared/middleware"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"s3-api/internal/config"
-	"s3-api/internal/handler"
-	"s3-api/internal/client"
-	"micro-s3/shared/logger"
-	"micro-s3/shared/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/consul/api"
@@ -85,7 +84,7 @@ func main() {
 	// 启动服务器
 	go func() {
 		logger.Info(ctx, "S3 API 服务启动", map[string]any{
-			"port": cfg.Port,
+			"port":         cfg.Port,
 			"service_name": cfg.ServiceName,
 		})
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

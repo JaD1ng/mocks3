@@ -6,20 +6,20 @@ RUN apk add --no-cache git
 # 设置工作目录
 WORKDIR /app
 
+# 复制全局go.mod和go.sum，利用Docker层缓存
+COPY go.mod go.sum ./
+
+# 下载所有依赖
+RUN go mod download
+
 # 复制shared模块
 COPY ./shared ./shared
 
-# 复制 go.mod 和 go.sum
-COPY ./services/metadata/go.mod ./services/metadata/go.sum ./
-
-# 下载依赖
-RUN go mod download
-
-# 复制源码
-COPY ./services/metadata .
+# 复制服务源码
+COPY ./services/metadata ./services/metadata
 
 # 构建应用
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./services/metadata/cmd/main.go
 
 # 运行阶段
 FROM alpine:latest

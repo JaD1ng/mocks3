@@ -1,23 +1,28 @@
 package handler
 
 import (
+	"metadata/internal/db"
+	"github.com/mocks3/shared/logger"
 	"net/http"
 	"strconv"
 	"time"
-
-	"metadata/internal/db"
-	"micro-s3/shared/logger"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
+// MetadataHandler 元数据处理器
+// 提供元数据的CRUD操作，支持数据库和缓存二级存储
 type MetadataHandler struct {
-	repo   *db.MetadataRepository
-	cache  *db.RedisCache
-	logger logger.Logger
+	repo   *db.MetadataRepository // 数据库仓库层
+	cache  *db.RedisCache         // Redis缓存层
+	logger logger.Logger          // 日志记录器
 }
 
+// NewMetadataHandler 创建元数据处理器
+// database: GORM数据库连接
+// cache: Redis缓存实例
+// 返回: 初始化后的元数据处理器
 func NewMetadataHandler(database *gorm.DB, cache *db.RedisCache) *MetadataHandler {
 	return &MetadataHandler{
 		repo:   db.NewMetadataRepository(database),
@@ -26,6 +31,11 @@ func NewMetadataHandler(database *gorm.DB, cache *db.RedisCache) *MetadataHandle
 	}
 }
 
+// NewMetadataHandlerWithLogger 创建元数据处理器（带自定义日志器）
+// database: GORM数据库连接
+// cache: Redis缓存实例
+// log: 自定义日志记录器
+// 返回: 初始化后的元数据处理器
 func NewMetadataHandlerWithLogger(database *gorm.DB, cache *db.RedisCache, log logger.Logger) *MetadataHandler {
 	return &MetadataHandler{
 		repo:   db.NewMetadataRepository(database),
@@ -35,7 +45,10 @@ func NewMetadataHandlerWithLogger(database *gorm.DB, cache *db.RedisCache, log l
 }
 
 // HealthCheck 健康检查
+// c: Gin上下文对象
+// 返回: 服务健康状态信息
 func (h *MetadataHandler) HealthCheck(c *gin.Context) {
+	// 返回服务健康状态和时间戳
 	c.JSON(http.StatusOK, gin.H{
 		"status":    "ok",
 		"service":   "metadata",
@@ -44,7 +57,10 @@ func (h *MetadataHandler) HealthCheck(c *gin.Context) {
 }
 
 // SaveMetadata 保存元数据
+// c: Gin上下文对象
+// 功能: 解析JSON请求，保存到数据库并更新缓存
 func (h *MetadataHandler) SaveMetadata(c *gin.Context) {
+	// 解析请求体中的JSON数据
 	var entry db.MetadataEntry
 	if err := c.ShouldBindJSON(&entry); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -66,7 +82,7 @@ func (h *MetadataHandler) SaveMetadata(c *gin.Context) {
 		return
 	}
 
-	// 更新缓存
+	// 更新Redis缓存（失败不影响主流程）
 	ctx := c.Request.Context()
 	err = h.cache.SetMetadata(ctx, entry.Key, &entry)
 	if err != nil {
@@ -75,6 +91,7 @@ func (h *MetadataHandler) SaveMetadata(c *gin.Context) {
 		})
 	}
 
+	// 返回成功响应
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "元数据保存成功",
@@ -83,7 +100,10 @@ func (h *MetadataHandler) SaveMetadata(c *gin.Context) {
 }
 
 // GetMetadata 获取元数据
+// c: Gin上下文对象
+// 功能: 通过key获取元数据，优先从缓存查找，未命中则查询数据库
 func (h *MetadataHandler) GetMetadata(c *gin.Context) {
+	// 验证路径参数
 	key := c.Param("key")
 	if key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -94,40 +114,72 @@ func (h *MetadataHandler) GetMetadata(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// 先尝试从缓存获取
-	entry, err := h.cache.GetMetadata(ctx, key)
+	// 尝试从缓存获取元数据
+	entry, err := h.tryGetFromCache(c, key)
 	if err != nil {
-		h.logger.Error(ctx, "缓存查询失败", err, map[string]any{
-			"key": key,
-		})
+		// 缓存错误不影响主流程，记录日志后继续
+		h.logger.Error(ctx, "缓存查询失败", err, map[string]any{"key": key})
 	}
 
 	// 缓存未命中，从数据库获取
 	if entry == nil {
-		entry, err = h.repo.GetByKey(key)
+		entry, err = h.getFromDatabaseAndCache(c, key)
 		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				c.JSON(http.StatusNotFound, gin.H{
-					"error": "元数据不存在",
-				})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "查询元数据失败: " + err.Error(),
-			})
+			// 根据错误类型返回不同的HTTP状态码
+			h.handleDatabaseError(c, err, key)
 			return
-		}
-
-		// 更新缓存
-		err = h.cache.SetMetadata(ctx, key, entry)
-		if err != nil {
-			h.logger.Error(ctx, "更新缓存失败", err, map[string]any{
-				"key": key,
-			})
 		}
 	}
 
+	// 返回查询结果
 	c.JSON(http.StatusOK, entry)
+}
+
+// tryGetFromCache 尝试从缓存获取元数据（私有方法）
+// c: Gin上下文对象
+// key: 元数据键
+// 返回: 元数据对象和错误信息
+func (h *MetadataHandler) tryGetFromCache(c *gin.Context, key string) (*db.MetadataEntry, error) {
+	ctx := c.Request.Context()
+	return h.cache.GetMetadata(ctx, key)
+}
+
+// getFromDatabaseAndCache 从数据库获取并更新缓存（私有方法）
+// c: Gin上下文对象
+// key: 元数据键
+// 返回: 元数据对象和错误信息
+func (h *MetadataHandler) getFromDatabaseAndCache(c *gin.Context, key string) (*db.MetadataEntry, error) {
+	// 从数据库查询
+	entry, err := h.repo.GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新缓存（失败不影响主流程）
+	ctx := c.Request.Context()
+	if cacheErr := h.cache.SetMetadata(ctx, key, entry); cacheErr != nil {
+		h.logger.Error(ctx, "更新缓存失败", cacheErr, map[string]any{"key": key})
+	}
+
+	return entry, nil
+}
+
+// handleDatabaseError 处理数据库错误（私有方法）
+// c: Gin上下文对象
+// err: 数据库错误
+// key: 元数据键
+func (h *MetadataHandler) handleDatabaseError(c *gin.Context, err error, key string) {
+	if err == gorm.ErrRecordNotFound {
+		// 记录不存在
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "元数据不存在",
+		})
+	} else {
+		// 其他数据库错误
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "查询元数据失败: " + err.Error(),
+		})
+	}
 }
 
 // UpdateMetadata 更新元数据

@@ -1,16 +1,15 @@
 package injector
 
 import (
+	"chaos-engineering/internal/rules"
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
+	"github.com/mocks3/shared/logger"
 	"os"
 	"runtime"
 	"sync"
 	"time"
-
-	"chaos-engineering/internal/rules"
 )
 
 // ChaosInjector 混沌注入器
@@ -61,7 +60,7 @@ func (ci *ChaosInjector) Start() error {
 	ci.running = true
 	go ci.runInjectionLoop()
 
-	log.Printf("Chaos injector started")
+	logger.Info("Chaos injector started")
 	return nil
 }
 
@@ -80,11 +79,11 @@ func (ci *ChaosInjector) Stop() {
 	// 取消所有活跃的注入器
 	for ruleID, cancel := range ci.activeInjectors {
 		cancel()
-		log.Printf("Cancelled active injector for rule: %s", ruleID)
+		logger.Infof("Cancelled active injector for rule: %s", ruleID)
 	}
 	ci.activeInjectors = make(map[string]context.CancelFunc)
 
-	log.Printf("Chaos injector stopped")
+	logger.Info("Chaos injector stopped")
 }
 
 // runInjectionLoop 运行注入循环
@@ -131,7 +130,7 @@ func (ci *ChaosInjector) shouldExecuteRule(rule *rules.ChaosRule) bool {
 
 // executeRule 执行规则
 func (ci *ChaosInjector) executeRule(rule *rules.ChaosRule) {
-	log.Printf("Executing chaos rule: %s (type: %s)", rule.Name, rule.FailureType)
+	logger.Infof("Executing chaos rule: %s (type: %s)", rule.Name, rule.FailureType)
 
 	// 创建执行上下文
 	ctx, cancel := context.WithCancel(context.Background())
@@ -170,9 +169,9 @@ func (ci *ChaosInjector) executeRule(rule *rules.ChaosRule) {
 	record.Success = (err == nil)
 	if err != nil {
 		record.Error = err.Error()
-		log.Printf("Failed to execute chaos rule %s: %v", rule.Name, err)
+		logger.Errorf("Failed to execute chaos rule %s: %v", rule.Name, err)
 	} else {
-		log.Printf("Successfully executed chaos rule %s for %v", rule.Name, record.Duration)
+		logger.Infof("Successfully executed chaos rule %s for %v", rule.Name, record.Duration)
 	}
 
 	// 添加到执行日志
@@ -224,7 +223,7 @@ func (ci *ChaosInjector) injectNetworkTimeout(ctx context.Context, rule *rules.C
 		}
 	}
 
-	log.Printf("[CHAOS] Network timeout injection: delay=%vms, timeout=%vms", delayMs, timeoutMs)
+	logger.Infof("[CHAOS] Network timeout injection: delay=%vms, timeout=%vms", delayMs, timeoutMs)
 
 	select {
 	case <-ctx.Done():
@@ -263,7 +262,7 @@ func (ci *ChaosInjector) injectMemoryLeak(ctx context.Context, rule *rules.Chaos
 		}
 	}
 
-	log.Printf("[CHAOS] Memory leak injection: start=%dMB, increment=%dMB, interval=%ds, max=%dMB",
+	logger.Infof("[CHAOS] Memory leak injection: start=%dMB, increment=%dMB, interval=%ds, max=%dMB",
 		startMemoryMB, incrementMB, intervalSec, maxMemoryMB)
 
 	// 分配内存块（模拟内存泄漏）
@@ -286,7 +285,7 @@ func (ci *ChaosInjector) injectMemoryLeak(ctx context.Context, rule *rules.Chaos
 				block := make([]byte, incrementMB*1024*1024)
 				memoryBlocks = append(memoryBlocks, block)
 				currentMemory += incrementMB
-				log.Printf("[CHAOS] Allocated %dMB, total: %dMB", incrementMB, currentMemory)
+				logger.Infof("[CHAOS] Allocated %dMB, total: %dMB", incrementMB, currentMemory)
 			}
 		}
 	}
@@ -308,7 +307,7 @@ func (ci *ChaosInjector) injectCPUSpike(ctx context.Context, rule *rules.ChaosRu
 		}
 	}
 
-	log.Printf("[CHAOS] CPU spike injection: %v%% using %d threads", cpuPercent, threads)
+	logger.Infof("[CHAOS] CPU spike injection: %v%% using %d threads", cpuPercent, threads)
 
 	// 启动CPU密集型任务
 	for i := 0; i < threads; i++ {
@@ -348,7 +347,7 @@ func (ci *ChaosInjector) injectDatabaseError(ctx context.Context, rule *rules.Ch
 	}
 
 	selectedError := errorTypes[rand.Intn(len(errorTypes))]
-	log.Printf("[CHAOS] Database error injection: %s", selectedError)
+	logger.Infof("[CHAOS] Database error injection: %s", selectedError)
 
 	// 这里只是模拟，实际环境中可以:
 	// 1. 修改数据库连接配置
@@ -368,7 +367,7 @@ func (ci *ChaosInjector) injectDiskFull(ctx context.Context, rule *rules.ChaosRu
 		}
 	}
 
-	log.Printf("[CHAOS] Disk full injection: leaving %dMB free space", freeSpaceMB)
+	logger.Infof("[CHAOS] Disk full injection: leaving %dMB free space", freeSpaceMB)
 
 	// 创建临时文件占用磁盘空间
 	tempDir := os.TempDir()
@@ -415,7 +414,7 @@ func (ci *ChaosInjector) injectSlowResponse(ctx context.Context, rule *rules.Cha
 
 	// 随机延迟
 	delay := minDelayMs + rand.Float64()*(maxDelayMs-minDelayMs)
-	log.Printf("[CHAOS] Slow response injection: delay=%vms", delay)
+	logger.Infof("[CHAOS] Slow response injection: delay=%vms", delay)
 
 	select {
 	case <-ctx.Done():
@@ -491,7 +490,7 @@ func (ci *ChaosInjector) CancelRule(ruleID string) error {
 
 	cancel()
 	delete(ci.activeInjectors, ruleID)
-	log.Printf("Cancelled execution of rule: %s", ruleID)
+	logger.Infof("Cancelled execution of rule: %s", ruleID)
 
 	return nil
 }

@@ -1,16 +1,11 @@
 package middleware
 
 import (
+	"github.com/JaD1ng/mocks3/shared/logger"
 	"time"
 
-	"micro-s3/shared/logger"
 	"github.com/gin-gonic/gin"
 )
-
-// Logger 日志中间件
-func Logger() gin.HandlerFunc {
-	return LoggerWithConfig(logger.DefaultLogger)
-}
 
 // LoggerWithConfig 使用指定日志器的中间件
 func LoggerWithConfig(l logger.Logger) gin.HandlerFunc {
@@ -55,11 +50,6 @@ func LoggerWithConfig(l logger.Logger) gin.HandlerFunc {
 	}
 }
 
-// Recovery 恢复中间件
-func Recovery() gin.HandlerFunc {
-	return RecoveryWithConfig(logger.DefaultLogger)
-}
-
 // RecoveryWithConfig 使用指定日志器的恢复中间件
 func RecoveryWithConfig(l logger.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered any) {
@@ -70,10 +60,10 @@ func RecoveryWithConfig(l logger.Logger) gin.HandlerFunc {
 			"client_ip": c.ClientIP(),
 			"panic":     recovered,
 		}
-		
-		l.Error(c.Request.Context(), "Panic recovered in HTTP handler", 
+
+		l.Error(c.Request.Context(), "Panic recovered in HTTP handler",
 			nil, fields)
-		
+
 		c.JSON(500, gin.H{
 			"error": "Internal server error",
 		})

@@ -1,9 +1,9 @@
 package nodes
 
 import (
-	"micro-s3/shared/utils"
 	"fmt"
 	"math/rand"
+	"github.com/mocks3/shared/utils"
 	"time"
 )
 
@@ -32,11 +32,11 @@ func (s *MockThirdPartyService) GetObject(key string) (*FileObject, error) {
 	}
 
 	// 生成模拟数据
-	mockData := fmt.Sprintf("Mock data for key: %s\nGenerated at: %s\nFrom: %s", 
+	mockData := fmt.Sprintf("Mock data for key: %s\nGenerated at: %s\nFrom: %s",
 		key, time.Now().Format(time.RFC3339), s.name)
-	
+
 	data := []byte(mockData)
-	
+
 	// 计算 MD5 哈希
 	md5Hash := utils.CalculateMD5(data)
 
@@ -96,7 +96,7 @@ func splitKey(key string) []string {
 
 	var parts []string
 	current := ""
-	
+
 	for _, char := range key {
 		if char == '/' {
 			if current != "" {
@@ -107,11 +107,11 @@ func splitKey(key string) []string {
 			current += string(char)
 		}
 	}
-	
+
 	if current != "" {
 		parts = append(parts, current)
 	}
-	
+
 	return parts
 }
 
@@ -138,7 +138,7 @@ func (s *HTTPThirdPartyService) GetObject(key string) (*FileObject, error) {
 	// 1. 发送 HTTP GET 请求到 s.baseURL + key
 	// 2. 解析响应数据
 	// 3. 构造 FileObject 返回
-	
+
 	return nil, fmt.Errorf("HTTP third party service not implemented")
 }
 

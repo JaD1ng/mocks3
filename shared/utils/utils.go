@@ -1,15 +1,11 @@
 package utils
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"time"
-
-	"micro-s3/shared/logger"
 
 	"github.com/google/uuid"
 )
@@ -47,16 +43,8 @@ func ToJSON(v any) ([]byte, error) {
 
 // ToJSONString 转换为JSON字符串
 func ToJSONString(v any) string {
-	return ToJSONStringWithLogger(v, logger.DefaultLogger)
-}
-
-// ToJSONStringWithLogger 使用指定日志器转换为JSON字符串
-func ToJSONStringWithLogger(v any, l logger.Logger) string {
 	data, err := json.Marshal(v)
 	if err != nil {
-		l.Error(context.Background(), "Failed to marshal to JSON", err, map[string]any{
-			"value_type": fmt.Sprintf("%T", v),
-		})
 		return "{}"
 	}
 	return string(data)

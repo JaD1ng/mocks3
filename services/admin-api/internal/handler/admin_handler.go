@@ -1,13 +1,12 @@
 package handler
 
 import (
+	"admin-api/internal/client"
 	"context"
+	"github.com/mocks3/shared/logger"
 	"net/http"
 	"strconv"
 	"time"
-
-	"admin-api/internal/client"
-	"micro-s3/shared/logger"
 
 	"github.com/gin-gonic/gin"
 )

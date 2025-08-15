@@ -3,16 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"mocks3/services/metadata/internal/config"
+	"mocks3/services/metadata/internal/db"
+	"mocks3/services/metadata/internal/handler"
+	"github.com/mocks3/shared/logger"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"metadata/internal/config"
-	"metadata/internal/db"
-	"metadata/internal/handler"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/consul/api"
@@ -25,25 +24,25 @@ func main() {
 	// 连接数据库
 	database, err := db.NewPostgresDB(cfg.PostgresURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+		logger.Fatal("Failed to connect to PostgreSQL", err)
 	}
 
 	// 连接 Redis
 	redisClient, err := db.NewRedisClient(cfg.RedisCacheURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		logger.Fatal("Failed to connect to Redis", err)
 	}
 
 	// 自动迁移数据库
 	err = db.Migrate(database)
 	if err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+		logger.Fatal("Failed to migrate database", err)
 	}
 
 	// 连接 Consul
 	consulClient, err := connectConsul(cfg.ConsulAddress)
 	if err != nil {
-		log.Fatalf("Failed to connect to Consul: %v", err)
+		logger.Fatal("Failed to connect to Consul", err)
 	}
 
 	// 创建 Gin 引擎
@@ -73,7 +72,7 @@ func main() {
 	serviceID := fmt.Sprintf("%s-%d", cfg.ServiceName, time.Now().Unix())
 	err = registerService(consulClient, cfg, serviceID)
 	if err != nil {
-		log.Fatalf("Failed to register service: %v", err)
+		logger.Fatal("Failed to register service", err)
 	}
 
 	// 创建 HTTP 服务器
@@ -84,9 +83,9 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		log.Printf("元数据管理服务启动在端口 %d", cfg.Port)
+		logger.Infof("元数据管理服务启动在端口 %d", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("服务启动失败: %v", err)
+			logger.Fatal("服务启动失败", err)
 		}
 	}()
 
@@ -95,12 +94,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("正在关闭元数据管理服务...")
+	logger.Info("正在关闭元数据管理服务...")
 
 	// 注销服务
 	err = consulClient.Agent().ServiceDeregister(serviceID)
 	if err != nil {
-		log.Printf("Failed to deregister service: %v", err)
+		logger.Error("Failed to deregister service", err)
 	}
 
 	// 关闭服务器
@@ -108,10 +107,10 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("服务关闭失败: %v", err)
+		logger.Fatal("服务关闭失败", err)
 	}
 
-	log.Println("元数据管理服务已关闭")
+	logger.Info("元数据管理服务已关闭")
 }
 
 // setupRoutes 设置路由

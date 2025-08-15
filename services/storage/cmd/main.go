@@ -3,16 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/mocks3/shared/logger"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
-	"time"
-
 	"storage/internal/config"
 	"storage/internal/handler"
 	"storage/internal/nodes"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/consul/api"
@@ -25,13 +24,13 @@ func main() {
 	// 初始化存储节点
 	storageManager, err := initializeStorageNodes(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize storage nodes: %v", err)
+		logger.Fatal("Failed to initialize storage nodes", err)
 	}
 
 	// 连接 Consul
 	consulClient, err := connectConsul(cfg.ConsulAddress)
 	if err != nil {
-		log.Fatalf("Failed to connect to Consul: %v", err)
+		logger.Fatal("Failed to connect to Consul", err)
 	}
 
 	// 创建 Gin 引擎
@@ -61,7 +60,7 @@ func main() {
 	serviceID := fmt.Sprintf("%s-%d", cfg.ServiceName, time.Now().Unix())
 	err = registerService(consulClient, cfg, serviceID)
 	if err != nil {
-		log.Fatalf("Failed to register service: %v", err)
+		logger.Fatal("Failed to register service", err)
 	}
 
 	// 创建 HTTP 服务器
@@ -72,9 +71,9 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		log.Printf("分布式存储服务启动在端口 %d", cfg.Port)
+		logger.Infof("分布式存储服务启动在端口 %d", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("服务启动失败: %v", err)
+			logger.Fatal("服务启动失败", err)
 		}
 	}()
 
@@ -83,12 +82,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("正在关闭分布式存储服务...")
+	logger.Info("正在关闭分布式存储服务...")
 
 	// 注销服务
 	err = consulClient.Agent().ServiceDeregister(serviceID)
 	if err != nil {
-		log.Printf("Failed to deregister service: %v", err)
+		logger.Error("Failed to deregister service", err)
 	}
 
 	// 关闭服务器
@@ -96,10 +95,10 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("服务关闭失败: %v", err)
+		logger.Fatal("服务关闭失败", err)
 	}
 
-	log.Println("分布式存储服务已关闭")
+	logger.Info("分布式存储服务已关闭")
 }
 
 // setupRoutes 设置路由
@@ -138,13 +137,13 @@ func initializeStorageNodes(cfg *config.Config) (*nodes.StorageManager, error) {
 			return nil, fmt.Errorf("failed to create storage node %s: %v", nodeConfig.ID, err)
 		}
 		manager.AddNode(node)
-		log.Printf("创建存储节点: %s (%s)", nodeConfig.ID, nodeConfig.Path)
+		logger.Infof("创建存储节点: %s (%s)", nodeConfig.ID, nodeConfig.Path)
 	}
 
 	// 设置第三方服务
 	thirdParty := nodes.NewMockThirdPartyService()
 	manager.SetThirdPartyService(thirdParty)
-	log.Printf("设置第三方服务: %s", thirdParty.GetName())
+	logger.Infof("设置第三方服务: %s", thirdParty.GetName())
 
 	return manager, nil
 }

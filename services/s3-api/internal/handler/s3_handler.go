@@ -3,14 +3,12 @@ package handler
 import (
 	"fmt"
 	"io"
+	"mocks3/services/s3-api/internal/client"
+	"github.com/mocks3/shared/logger"
+	"github.com/mocks3/shared/utils"
 	"net/http"
 	"strconv"
 	"time"
-
-	"s3-api/internal/client"
-
-	"micro-s3/shared/logger"
-	"micro-s3/shared/utils"
 
 	"github.com/gin-gonic/gin"
 )

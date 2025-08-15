@@ -22,6 +22,11 @@ type MetadataEntry struct {
 	UpdatedAt    time.Time   `json:"updated_at"`
 }
 
+// TableName 指定表名
+func (MetadataEntry) TableName() string {
+	return "metadata"
+}
+
 // StringArray 用于存储字符串数组到 JSONB
 type StringArray []string
 

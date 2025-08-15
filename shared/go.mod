@@ -1,6 +1,6 @@
-module micro-s3/shared
+module github.com/JaD1ng/mocks3/shared
 
-go 1.24.5
+go 1.25.0
 
 require (
 	github.com/gin-gonic/gin v1.10.1

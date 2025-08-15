@@ -1,14 +1,13 @@
 package handler
 
 import (
+	"github.com/mocks3/shared/utils"
 	"net/http"
-	"time"
-
 	"task-processor/internal/queue"
 	"task-processor/internal/worker"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"micro-s3/shared/utils"
 )
 
 type TaskHandler struct {
@@ -72,7 +71,7 @@ func (h *TaskHandler) SubmitTask(c *gin.Context) {
 // GetTasks 获取任务列表
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// 获取待处理任务
 	tasks, err := h.queue.GetPendingTasks(ctx, "")
 	if err != nil {
@@ -129,7 +128,7 @@ func (h *TaskHandler) CancelTask(c *gin.Context) {
 // GetQueueStats 获取队列统计信息
 func (h *TaskHandler) GetQueueStats(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	stats, err := h.queue.GetQueueStats(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
