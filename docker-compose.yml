@@ -1,0 +1,430 @@
+# MockS3 微服务架构完整部署配置
+# 包含所有微服务、基础设施和监控组件
+version: '3.8'
+
+services:
+  # ======= 网关服务 =======
+  nginx-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: mocks3-gateway
+    ports:
+      - "8080:8080"  # S3 API 端口
+      - "8081:8081"  # 管理端口
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - nginx_logs:/var/log/nginx
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    depends_on:
+      - metadata-service
+      - storage-service
+      - queue-service
+      - third-party-service
+      - mock-error-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ======= 微服务组件 =======
+  
+  # 元数据服务
+  metadata-service:
+    build:
+      context: .
+      dockerfile: services/metadata/Dockerfile
+    container_name: metadata-service
+    environment:
+      - SERVER_PORT=8081
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - DATABASE_URL=postgres://mocks3:password@postgres:5432/mocks3?sslmode=disable
+      - CONSUL_ADDR=consul:8500
+      - CONSUL_ENABLED=true
+      # OpenTelemetry 配置
+      - OTEL_SERVICE_NAME=metadata-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=metadata-service,service.version=1.0.0
+    networks:
+      - mocks3-network
+    depends_on:
+      - postgres
+      - consul
+      - otel-collector
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 存储服务
+  storage-service:
+    build:
+      context: .
+      dockerfile: services/storage/Dockerfile
+    container_name: storage-service
+    environment:
+      - SERVER_PORT=8082
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - STORAGE_BASE_PATH=/data/storage
+      - STORAGE_NODE_COUNT=3
+      - STORAGE_REPLICATION_FACTOR=2
+      - METADATA_SERVICE_URL=http://metadata-service:8081
+      - THIRD_PARTY_SERVICE_URL=http://third-party-service:8084
+      - CONSUL_ADDR=consul:8500
+      - CONSUL_ENABLED=true
+      # OpenTelemetry 配置
+      - OTEL_SERVICE_NAME=storage-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=storage-service,service.version=1.0.0
+    volumes:
+      - storage_data:/data/storage
+    networks:
+      - mocks3-network
+    depends_on:
+      - metadata-service
+      - third-party-service
+      - consul
+      - otel-collector
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 队列服务
+  queue-service:
+    build:
+      context: .
+      dockerfile: services/queue/Dockerfile
+    container_name: queue-service
+    environment:
+      - SERVER_PORT=8083
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - QUEUE_WORKER_COUNT=5
+      - QUEUE_MAX_RETRIES=3
+      - QUEUE_RETRY_DELAY=5s
+      - CONSUL_ADDR=consul:8500
+      - CONSUL_ENABLED=true
+      # OpenTelemetry 配置
+      - OTEL_SERVICE_NAME=queue-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=queue-service,service.version=1.0.0
+    networks:
+      - mocks3-network
+    depends_on:
+      - redis
+      - consul
+      - otel-collector
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 第三方服务
+  third-party-service:
+    build:
+      context: .
+      dockerfile: services/third-party/Dockerfile
+    container_name: third-party-service
+    environment:
+      - SERVER_PORT=8084
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=1
+      - CACHE_TTL=3600
+      - CACHE_MAX_SIZE=100000
+      - CONSUL_ADDR=consul:8500
+      - CONSUL_ENABLED=true
+      # OpenTelemetry 配置
+      - OTEL_SERVICE_NAME=third-party-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=third-party-service,service.version=1.0.0
+    networks:
+      - mocks3-network
+    depends_on:
+      - redis
+      - consul
+      - otel-collector
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 错误注入服务
+  mock-error-service:
+    build:
+      context: .
+      dockerfile: services/mock-error/Dockerfile
+    container_name: mock-error-service
+    environment:
+      - SERVER_PORT=8085
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - CONSUL_ADDR=consul:8500
+      - CONSUL_ENABLED=true
+      # 错误引擎配置
+      - ERROR_MAX_RULES=1000
+      - ERROR_ENABLE_SCHEDULING=true
+      - ERROR_DEFAULT_PROBABILITY=0.1
+      - ERROR_ENABLE_STATISTICS=true
+      - ERROR_STAT_RETENTION_HOURS=24
+      # 注入配置
+      - INJECTION_MAX_DELAY_MS=10000
+      - INJECTION_ENABLE_HTTP_ERRORS=true
+      - INJECTION_ENABLE_NETWORK_ERRORS=true
+      - INJECTION_ENABLE_DATABASE_ERRORS=true
+      - INJECTION_ENABLE_STORAGE_ERRORS=true
+      - INJECTION_GLOBAL_PROBABILITY=1.0
+      # OpenTelemetry 配置
+      - OTEL_SERVICE_NAME=mock-error-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=mock-error-service,service.version=1.0.0
+    networks:
+      - mocks3-network
+    depends_on:
+      - consul
+      - otel-collector
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ======= 基础设施服务 =======
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: mocks3-postgres
+    environment:
+      - POSTGRES_DB=mocks3
+      - POSTGRES_USER=mocks3
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deployments/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mocks3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis 缓存和队列
+  redis:
+    image: redis:7-alpine
+    container_name: mocks3-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Consul 服务发现
+  consul:
+    image: consul:1.17
+    container_name: mocks3-consul
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    volumes:
+      - consul_data:/consul/data
+      - ./deployments/consul/config:/consul/config
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    command: >
+      consul agent 
+      -server 
+      -bootstrap-expect=1 
+      -data-dir=/consul/data 
+      -config-dir=/consul/config 
+      -ui-config-enabled=true 
+      -client=0.0.0.0 
+      -bind=0.0.0.0
+
+  # ======= 可观测性组件 =======
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: mocks3-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./deployments/observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "55679:55679" # zpages extension
+    networks:
+      - mocks3-network
+    depends_on:
+      - elasticsearch
+      - prometheus
+    restart: unless-stopped
+
+  # Elasticsearch (用于日志和链路追踪存储)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: mocks3-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Kibana (用于日志和链路可视化)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: mocks3-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
+    networks:
+      - mocks3-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus (用于指标存储)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mocks3-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./deployments/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana (用于指标可视化)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mocks3-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployments/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./deployments/observability/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    networks:
+      - mocks3-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ======= 数据卷定义 =======
+volumes:
+  # 数据库
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  consul_data:
+    driver: local
+    
+  # 应用数据
+  storage_data:
+    driver: local
+  nginx_logs:
+    driver: local
+  nginx_cache:
+    driver: local
+    
+  # 监控数据
+  elasticsearch_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ======= 网络定义 =======
+networks:
+  mocks3-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

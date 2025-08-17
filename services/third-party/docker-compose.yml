@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  third-party-service:
+    build:
+      context: ../../
+      dockerfile: services/third-party/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      - SERVER_PORT=8084
+      - CACHE_ENABLED=true
+      - CACHE_TTL=3600
+      - CACHE_MAX_SIZE=1024
+      - CACHE_STRATEGY=lru
+      - LOG_LEVEL=info
+      - CONSUL_ADDR=consul:8500
+      # 数据源1配置
+      - DATASOURCE_1_NAME=backup-s3
+      - DATASOURCE_1_TYPE=s3
+      - DATASOURCE_1_ENDPOINT=https://s3.amazonaws.com
+      - DATASOURCE_1_REGION=us-east-1
+      - DATASOURCE_1_BUCKET=backup-bucket
+      - DATASOURCE_1_ENABLED=true
+      # 数据源2配置
+      - DATASOURCE_2_NAME=backup-http
+      - DATASOURCE_2_TYPE=http
+      - DATASOURCE_2_ENDPOINT=https://backup.example.com/api
+      - DATASOURCE_2_ENABLED=false
+    depends_on:
+      - consul
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  consul:
+    image: consul:1.17
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    command: >
+      consul agent 
+      -server 
+      -bootstrap-expect=1 
+      -data-dir=/consul/data 
+      -config-dir=/consul/config 
+      -ui-config-enabled=true 
+      -client=0.0.0.0 
+      -bind=0.0.0.0
+
+volumes:
+  consul_data:
+    driver: local
+
+networks:
+  mocks3-network:
+    driver: bridge

@@ -1,0 +1,213 @@
+version: '3.8'
+
+services:
+  nginx-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mocks3-gateway
+    ports:
+      - "8080:8080"  # S3 API端口
+      - "8081:8081"  # 管理端口
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      # 日志持久化
+      - nginx_logs:/var/log/nginx
+      # 缓存目录
+      - nginx_cache:/var/cache/nginx
+      # 配置文件可选覆盖
+      # - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    depends_on:
+      - metadata-service
+      - storage-service
+      - queue-service
+      - third-party-service
+      - mock-error-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # 元数据服务
+  metadata-service:
+    image: mocks3/metadata-service:latest
+    container_name: metadata-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgres://mocks3:password@postgres:5432/mocks3?sslmode=disable
+      - CONSUL_ADDR=consul:8500
+    networks:
+      - mocks3-network
+    depends_on:
+      - postgres
+      - consul
+    restart: unless-stopped
+
+  # 存储服务
+  storage-service:
+    image: mocks3/storage-service:latest
+    container_name: storage-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - ENVIRONMENT=production
+      - STORAGE_BASE_PATH=/data/storage
+      - METADATA_SERVICE_URL=http://metadata-service:8081
+      - THIRD_PARTY_SERVICE_URL=http://third-party-service:8084
+      - CONSUL_ADDR=consul:8500
+    volumes:
+      - storage_data:/data/storage
+    networks:
+      - mocks3-network
+    depends_on:
+      - metadata-service
+      - consul
+    restart: unless-stopped
+
+  # 队列服务
+  queue-service:
+    image: mocks3/queue-service:latest
+    container_name: queue-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SERVER_PORT=8083
+      - ENVIRONMENT=production
+      - REDIS_ADDR=redis:6379
+      - CONSUL_ADDR=consul:8500
+    networks:
+      - mocks3-network
+    depends_on:
+      - redis
+      - consul
+    restart: unless-stopped
+
+  # 第三方服务
+  third-party-service:
+    image: mocks3/third-party-service:latest
+    container_name: third-party-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SERVER_PORT=8084
+      - ENVIRONMENT=production
+      - REDIS_ADDR=redis:6379
+      - CONSUL_ADDR=consul:8500
+    networks:
+      - mocks3-network
+    depends_on:
+      - redis
+      - consul
+    restart: unless-stopped
+
+  # 错误注入服务
+  mock-error-service:
+    image: mocks3/mock-error-service:latest
+    container_name: mock-error-service
+    ports:
+      - "8085:8085"
+    environment:
+      - SERVER_PORT=8085
+      - ENVIRONMENT=production
+      - CONSUL_ADDR=consul:8500
+      - ERROR_ENABLE_STATISTICS=true
+      - INJECTION_GLOBAL_PROBABILITY=1.0
+    networks:
+      - mocks3-network
+    depends_on:
+      - consul
+    restart: unless-stopped
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: mocks3-postgres
+    environment:
+      - POSTGRES_DB=mocks3
+      - POSTGRES_USER=mocks3
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mocks3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis 缓存和队列
+  redis:
+    image: redis:7-alpine
+    container_name: mocks3-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Consul 服务发现
+  consul:
+    image: consul:1.17
+    container_name: mocks3-consul
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    command: >
+      consul agent 
+      -server 
+      -bootstrap-expect=1 
+      -data-dir=/consul/data 
+      -config-dir=/consul/config 
+      -ui-config-enabled=true 
+      -client=0.0.0.0 
+      -bind=0.0.0.0
+
+volumes:
+  # 数据持久化
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  consul_data:
+    driver: local
+  storage_data:
+    driver: local
+    
+  # Nginx 相关
+  nginx_logs:
+    driver: local
+  nginx_cache:
+    driver: local
+
+networks:
+  mocks3-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

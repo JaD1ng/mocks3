@@ -1,0 +1,146 @@
+# OpenTelemetry Collector 配置
+# 用于收集、处理和导出遥测数据
+
+receivers:
+  # OTLP 接收器 (gRPC)
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Prometheus 接收器 (从服务抓取指标)
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector'
+          scrape_interval: 10s
+          static_configs:
+            - targets: ['localhost:8888']
+        
+        - job_name: 'mocks3-services'
+          scrape_interval: 15s
+          consul_sd_configs:
+            - server: 'consul:8500'
+              services: 
+                - metadata-service
+                - storage-service
+                - queue-service
+                - third-party-service
+                - mock-error-service
+          relabel_configs:
+            - source_labels: [__meta_consul_service]
+              target_label: service
+            - source_labels: [__meta_consul_service_address]
+              target_label: __address__
+            - source_labels: [__meta_consul_service_port]
+              target_label: __address__
+              regex: (.*)
+              replacement: ${1}:${__meta_consul_service_port}
+
+processors:
+  # 批处理器 (提高性能)
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # 内存限制器 (防止内存溢出)
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 5s
+
+  # 资源处理器 (添加/修改资源属性)
+  resource:
+    attributes:
+      - key: service.namespace
+        value: mocks3
+        action: upsert
+      - key: deployment.environment
+        value: production
+        action: upsert
+
+  # 属性处理器 (处理 span 和 metric 属性)
+  attributes:
+    actions:
+      - key: http.url
+        action: delete
+      - key: http.request.header.authorization
+        action: delete
+
+  # 采样器 (减少数据量)
+  probabilistic_sampler:
+    sampling_percentage: 100  # 开发环境100%采样，生产环境可调低
+
+exporters:
+  # Elasticsearch 导出器 (用于日志和链路追踪)
+  elasticsearch:
+    endpoints: 
+      - http://elasticsearch:9200
+    logs_index: logs-mocks3
+    traces_index: traces-mocks3
+    mapping:
+      mode: raw
+
+  # Prometheus 导出器 (用于指标)
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: mocks3
+    const_labels:
+      deployment: production
+
+  # 控制台调试导出器
+  logging:
+    loglevel: info
+
+  # Jaeger 导出器 (备用链路追踪可视化)
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+extensions:
+  # 健康检查
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # pprof 性能分析
+  pprof:
+    endpoint: 0.0.0.0:1888
+
+  # zpages 调试页面
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  # 启用的扩展
+  extensions: [health_check, pprof, zpages]
+  
+  # 数据管道配置
+  pipelines:
+    # 链路追踪管道
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, attributes, probabilistic_sampler]
+      exporters: [elasticsearch, logging]
+
+    # 指标管道
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, logging]
+
+    # 日志管道
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [elasticsearch, logging]
+
+  # 遥测配置
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888

@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  mock-error-service:
+    build:
+      context: ../../
+      dockerfile: services/mock-error/Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - SERVER_PORT=8085
+      - ENVIRONMENT=development
+      - LOG_LEVEL=info
+      - CONSUL_ADDR=consul:8500
+      - CONSUL_ENABLED=true
+      # 错误引擎配置
+      - ERROR_MAX_RULES=1000
+      - ERROR_ENABLE_SCHEDULING=true
+      - ERROR_DEFAULT_PROBABILITY=0.1
+      - ERROR_ENABLE_STATISTICS=true
+      - ERROR_STAT_RETENTION_HOURS=24
+      # 注入配置
+      - INJECTION_MAX_DELAY_MS=10000
+      - INJECTION_ENABLE_HTTP_ERRORS=true
+      - INJECTION_ENABLE_NETWORK_ERRORS=true
+      - INJECTION_ENABLE_DATABASE_ERRORS=true
+      - INJECTION_ENABLE_STORAGE_ERRORS=true
+      - INJECTION_GLOBAL_PROBABILITY=1.0
+    depends_on:
+      - consul
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  consul:
+    image: consul:1.17
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      - mocks3-network
+    restart: unless-stopped
+    command: >
+      consul agent 
+      -server 
+      -bootstrap-expect=1 
+      -data-dir=/consul/data 
+      -config-dir=/consul/config 
+      -ui-config-enabled=true 
+      -client=0.0.0.0 
+      -bind=0.0.0.0
+
+volumes:
+  consul_data:
+    driver: local
+
+networks:
+  mocks3-network:
+    driver: bridge
