@@ -100,29 +100,29 @@ mocks3/
 │   │   ├── storage.go            # 存储服务接口
 │   │   ├── metadata.go           # 元数据服务接口
 │   │   ├── queue.go              # 队列服务接口
+│   │   ├── third_party.go        # 第三方服务接口
 │   │   ├── error_injector.go     # 错误注入接口
 │   │   └── gateway.go            # 网关接口
 │   ├── models/                    # 共享数据模型
 │   │   ├── object.go             # 对象模型
 │   │   ├── metadata.go           # 元数据模型
 │   │   ├── task.go               # 任务模型
-│   │   └── error.go              # 错误模型
+│   │   ├── error.go              # 错误模型
+│   │   ├── service.go            # 服务模型
+│   │   └── data_source.go        # 数据源模型
 │   ├── client/                    # HTTP 客户端
 │   │   ├── storage_client.go     # 存储服务客户端
 │   │   ├── metadata_client.go    # 元数据服务客户端
-│   │   └── queue_client.go       # 队列服务客户端
+│   │   ├── queue_client.go       # 队列服务客户端
+│   │   └── third_party_client.go # 第三方服务客户端
 │   ├── observability/             # 可观测性组件
 │   │   ├── metric/               # 指标收集
-│   │   │   ├── collector.go      # 指标收集器
-│   │   │   ├── registry.go       # 指标注册
+│   │   │   ├── collector.go      # 指标收集器和注册表
 │   │   │   └── middleware.go     # HTTP 指标中间件
 │   │   ├── log/                  # 日志处理
-│   │   │   ├── logger.go         # 结构化日志器
-│   │   │   ├── formatter.go      # 日志格式化
-│   │   │   └── context.go        # 日志上下文
+│   │   │   └── logger.go         # 结构化日志器 (含格式化和上下文)
 │   │   └── trace/                # 链路追踪
-│   │       ├── tracer.go         # 追踪器初始化
-│   │       ├── span.go           # Span 工具
+│   │       ├── tracer.go         # 追踪器初始化 (含Span工具)
 │   │       └── middleware.go     # HTTP 追踪中间件
 │   ├── middleware/                # 其他中间件
 │   │   ├── error_injection.go    # 错误注入中间件
@@ -148,16 +148,20 @@ mocks3/
 │   └── mock-error/               # 错误注入服务
 ├── gateway/                       # Nginx 网关配置
 │   ├── nginx.conf
+│   ├── scripts/
 │   ├── templates/
 │   └── Dockerfile
 ├── deployments/                   # 部署配置
 │   ├── docker-compose.yml        # 完整堆栈
-│   ├── consul/
-│   ├── elasticsearch/
-│   └── prometheus/
-└── docs/                         # 文档
-    ├── api/                      # API 文档
-    └── architecture/             # 架构文档
+│   ├── consul/                   # Consul 配置
+│   ├── observability/           # 监控配置
+│   │   ├── otel-collector-config.yaml
+│   │   ├── prometheus.yml
+│   │   └── grafana/
+│   └── postgres/                # 数据库初始化
+├── bin/                          # 编译输出目录
+└── scripts/                      # 脚本文件
+    └── health-check.sh
 ```
 
 ## 开发注意事项
