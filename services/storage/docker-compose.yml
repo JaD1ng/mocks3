@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  storage-service:
+    build: .
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVICE_PORT=8082
+      - SERVICE_VERSION=1.0.0
+      - ENVIRONMENT=development
+      - LOG_LEVEL=info
+      - STORAGE_DATA_DIR=/data/storage
+      - STORAGE_STG1_PATH=/data/storage/stg1
+      - STORAGE_STG2_PATH=/data/storage/stg2
+      - STORAGE_STG3_PATH=/data/storage/stg3
+      - METADATA_SERVICE_URL=http://metadata-service:8081
+      - METADATA_SERVICE_TIMEOUT=30s
+      - THIRD_PARTY_SERVICE_URL=http://third-party-service:8084
+      - THIRD_PARTY_SERVICE_TIMEOUT=30s
+      - THIRD_PARTY_ENABLED=true
+      - CONSUL_ADDR=consul:8500
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    volumes:
+      - storage_data:/data/storage
+    depends_on:
+      - consul
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - mocks3-network
+
+  consul:
+    image: consul:1.15
+    command: consul agent -dev -client=0.0.0.0 -ui
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - mocks3-network
+
+volumes:
+  storage_data:
+
+networks:
+  mocks3-network:
+    driver: bridge
