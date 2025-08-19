@@ -158,14 +158,14 @@ func (m *ErrorInjectionMiddleware) injectHTTPErrorGin(c *gin.Context, action *mo
 		c.String(statusCode, action.Body)
 	} else if action.Message != "" {
 		c.JSON(statusCode, gin.H{
-			"error":   action.Message,
-			"code":    statusCode,
+			"error":    action.Message,
+			"code":     statusCode,
 			"injected": true,
 		})
 	} else {
 		c.JSON(statusCode, gin.H{
-			"error":   "Injected error",
-			"code":    statusCode,
+			"error":    "Injected error",
+			"code":     statusCode,
 			"injected": true,
 		})
 	}
@@ -228,7 +228,7 @@ func (m *ErrorInjectionMiddleware) injectTimeout(c *gin.Context, action *models.
 
 	// 模拟超时：延迟然后返回超时错误
 	time.Sleep(*action.Delay)
-	
+
 	c.JSON(http.StatusRequestTimeout, gin.H{
 		"error":    "Request timeout (injected)",
 		"code":     http.StatusRequestTimeout,
@@ -246,7 +246,7 @@ func (m *ErrorInjectionMiddleware) injectTimeoutStandard(w http.ResponseWriter, 
 
 	// 模拟超时：延迟然后返回超时错误
 	time.Sleep(*action.Delay)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusRequestTimeout)
 	w.Write([]byte(`{"error": "Request timeout (injected)", "code": 408, "injected": true}`))
@@ -257,14 +257,14 @@ func (m *ErrorInjectionMiddleware) injectTimeoutStandard(w http.ResponseWriter, 
 func (m *ErrorInjectionMiddleware) injectCorruption(c *gin.Context, action *models.ErrorAction) bool {
 	// 这是一个复杂的错误类型，需要在响应中随机修改数据
 	// 这里提供一个基本实现，实际使用时可能需要更复杂的逻辑
-	
+
 	// 在响应写入器中注入损坏
 	originalWriter := c.Writer
 	c.Writer = &corruptedResponseWriter{
 		ResponseWriter: originalWriter,
 		corruptionRate: 0.1, // 10%的字节损坏率
 	}
-	
+
 	return false // 继续处理请求
 }
 
@@ -278,13 +278,13 @@ func (w *corruptedResponseWriter) Write(data []byte) (int, error) {
 	// 随机损坏一些字节
 	corrupted := make([]byte, len(data))
 	copy(corrupted, data)
-	
+
 	for i := range corrupted {
 		if rand.Float64() < w.corruptionRate {
 			corrupted[i] = byte(rand.Intn(256))
 		}
 	}
-	
+
 	return w.ResponseWriter.Write(corrupted)
 }
 

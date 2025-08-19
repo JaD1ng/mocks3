@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"mocks3/services/third-party/internal/repository"
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
 	"mocks3/shared/observability/log"
-	"mocks3/services/third-party/internal/repository"
 	"net/http"
 	"strings"
 	"time"
@@ -59,7 +59,7 @@ func (s *ThirdPartyService) GetObject(ctx context.Context, bucket, key string) (
 
 		object, err := s.fetchFromDataSource(ctx, ds, bucket, key)
 		if err != nil {
-			s.logger.WarnContext(ctx, "Failed to fetch from data source", 
+			s.logger.WarnContext(ctx, "Failed to fetch from data source",
 				"source", ds.Name, "error", err)
 			continue
 		}
@@ -69,7 +69,7 @@ func (s *ThirdPartyService) GetObject(ctx context.Context, bucket, key string) (
 			s.logger.WarnContext(ctx, "Failed to cache object", "error", cacheErr)
 		}
 
-		s.logger.InfoContext(ctx, "Object retrieved successfully", 
+		s.logger.InfoContext(ctx, "Object retrieved successfully",
 			"bucket", bucket, "key", key, "source", ds.Name)
 		return object, nil
 	}
@@ -79,7 +79,7 @@ func (s *ThirdPartyService) GetObject(ctx context.Context, bucket, key string) (
 
 // PutObject 存储对象
 func (s *ThirdPartyService) PutObject(ctx context.Context, object *models.Object) error {
-	s.logger.InfoContext(ctx, "Storing object to third-party sources", 
+	s.logger.InfoContext(ctx, "Storing object to third-party sources",
 		"bucket", object.Bucket, "key", object.Key)
 
 	// 获取所有可用数据源
@@ -91,7 +91,7 @@ func (s *ThirdPartyService) PutObject(ctx context.Context, object *models.Object
 	// 存储到第一个可用的数据源
 	for _, ds := range dataSources {
 		if err := s.putToDataSource(ctx, ds, object); err != nil {
-			s.logger.WarnContext(ctx, "Failed to store to data source", 
+			s.logger.WarnContext(ctx, "Failed to store to data source",
 				"source", ds.Name, "error", err)
 			continue
 		}
@@ -101,7 +101,7 @@ func (s *ThirdPartyService) PutObject(ctx context.Context, object *models.Object
 			s.logger.WarnContext(ctx, "Failed to cache object", "error", cacheErr)
 		}
 
-		s.logger.InfoContext(ctx, "Object stored successfully", 
+		s.logger.InfoContext(ctx, "Object stored successfully",
 			"bucket", object.Bucket, "key", object.Key, "source", ds.Name)
 		return nil
 	}
@@ -127,7 +127,7 @@ func (s *ThirdPartyService) DeleteObject(ctx context.Context, bucket, key string
 
 	for _, ds := range dataSources {
 		if err := s.deleteFromDataSource(ctx, &ds, bucket, key); err != nil {
-			s.logger.WarnContext(ctx, "Failed to delete from data source", 
+			s.logger.WarnContext(ctx, "Failed to delete from data source",
 				"source", ds.Name, "error", err)
 			lastErr = err
 		} else {
@@ -139,7 +139,7 @@ func (s *ThirdPartyService) DeleteObject(ctx context.Context, bucket, key string
 		return fmt.Errorf("failed to delete from any data source: %w", lastErr)
 	}
 
-	s.logger.InfoContext(ctx, "Object deletion completed", 
+	s.logger.InfoContext(ctx, "Object deletion completed",
 		"bucket", bucket, "key", key, "success_count", successCount)
 	return nil
 }
@@ -190,11 +190,11 @@ func (s *ThirdPartyService) SetDataSource(ctx context.Context, name, config stri
 
 	// 解析配置 (简化实现)
 	dataSource := &models.DataSource{
-		Name:      name,
-		Type:      "custom",
-		Config:    map[string]string{"config": config},
-		Enabled:   true,
-		Priority:  100,
+		Name:     name,
+		Type:     "custom",
+		Config:   map[string]string{"config": config},
+		Enabled:  true,
+		Priority: 100,
 	}
 
 	return s.dataSourceRepo.Add(ctx, dataSource)
@@ -276,7 +276,7 @@ func (s *ThirdPartyService) fetchFromDataSource(ctx context.Context, ds *models.
 func (s *ThirdPartyService) fetchFromS3(ctx context.Context, ds *models.DataSource, bucket, key string) (*models.Object, error) {
 	// 模拟S3访问，实际实现需要AWS SDK
 	s.logger.DebugContext(ctx, "Fetching from S3 data source", "source", ds.Name)
-	
+
 	// 模拟数据
 	object := &models.Object{
 		Bucket:       bucket,
@@ -287,45 +287,45 @@ func (s *ThirdPartyService) fetchFromS3(ctx context.Context, ds *models.DataSour
 		Data:         []byte("mock data from S3 source"),
 		LastModified: time.Now(),
 	}
-	
+
 	return object, nil
 }
 
 // fetchFromHTTP 从HTTP数据源获取
 func (s *ThirdPartyService) fetchFromHTTP(ctx context.Context, ds *models.DataSource, bucket, key string) (*models.Object, error) {
 	s.logger.DebugContext(ctx, "Fetching from HTTP data source", "source", ds.Name)
-	
+
 	endpoint := ds.Config["endpoint"]
 	if endpoint == "" {
 		return nil, fmt.Errorf("no endpoint configured for HTTP data source")
 	}
-	
+
 	url := fmt.Sprintf("%s/objects/%s/%s", strings.TrimRight(endpoint, "/"), bucket, key)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("do request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("object not found")
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
-	
+
 	object := &models.Object{
 		Bucket:       bucket,
 		Key:          key,
@@ -335,7 +335,7 @@ func (s *ThirdPartyService) fetchFromHTTP(ctx context.Context, ds *models.DataSo
 		Data:         data,
 		LastModified: time.Now(),
 	}
-	
+
 	return object, nil
 }
 
@@ -361,14 +361,14 @@ func (s *ThirdPartyService) putToS3(ctx context.Context, ds *models.DataSource, 
 // putToHTTP 存储到HTTP
 func (s *ThirdPartyService) putToHTTP(ctx context.Context, ds *models.DataSource, object *models.Object) error {
 	s.logger.DebugContext(ctx, "Storing to HTTP data source", "source", ds.Name)
-	
+
 	endpoint := ds.Config["endpoint"]
 	if endpoint == "" {
 		return fmt.Errorf("no endpoint configured for HTTP data source")
 	}
-	
+
 	url := fmt.Sprintf("%s/objects", strings.TrimRight(endpoint, "/"))
-	
+
 	// 编码数据
 	data := base64.StdEncoding.EncodeToString(object.Data)
 	payload := map[string]interface{}{
@@ -377,11 +377,11 @@ func (s *ThirdPartyService) putToHTTP(ctx context.Context, ds *models.DataSource
 		"content_type": object.ContentType,
 		"data":         data,
 	}
-	
+
 	// 这里应该发送HTTP请求，简化实现
 	_ = payload
 	_ = url
-	
+
 	return nil
 }
 

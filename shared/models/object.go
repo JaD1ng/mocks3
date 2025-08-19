@@ -13,9 +13,9 @@ type Object struct {
 	ContentType  string            `json:"content_type" db:"content_type"`
 	MD5Hash      string            `json:"md5_hash" db:"md5_hash"`
 	ETag         string            `json:"etag" db:"etag"`
-	Data         []byte            `json:"-"`                    // 实际数据，不序列化
-	Headers      map[string]string `json:"headers,omitempty"`   // HTTP 头信息
-	Tags         map[string]string `json:"tags,omitempty"`      // 用户标签
+	Data         []byte            `json:"-"`                 // 实际数据，不序列化
+	Headers      map[string]string `json:"headers,omitempty"` // HTTP 头信息
+	Tags         map[string]string `json:"tags,omitempty"`    // 用户标签
 	LastModified time.Time         `json:"last_modified" db:"last_modified"`
 	CreatedAt    time.Time         `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at" db:"updated_at"`

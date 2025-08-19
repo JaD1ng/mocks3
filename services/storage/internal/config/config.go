@@ -69,7 +69,7 @@ func Load() *Config {
 					Path: utils.GetEnv("STORAGE_STG1_PATH", "./data/storage/stg1"),
 				},
 				{
-					ID:   "stg2", 
+					ID:   "stg2",
 					Path: utils.GetEnv("STORAGE_STG2_PATH", "./data/storage/stg2"),
 				},
 				{

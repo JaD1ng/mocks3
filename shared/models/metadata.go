@@ -39,15 +39,15 @@ type MetadataFilter struct {
 
 // Stats 统计信息
 type Stats struct {
-	TotalObjects   int64             `json:"total_objects"`
-	TotalSize      int64             `json:"total_size"`
-	AverageSize    float64           `json:"average_size"`
-	BucketStats    map[string]int64  `json:"bucket_stats"`
-	ContentTypes   map[string]int64  `json:"content_types"`
-	StorageNodes   map[string]int64  `json:"storage_nodes"`
-	StatusCounts   map[string]int64  `json:"status_counts"`
-	DailyUploads   []DailyUploadStat `json:"daily_uploads"`
-	LastUpdated    time.Time         `json:"last_updated"`
+	TotalObjects int64             `json:"total_objects"`
+	TotalSize    int64             `json:"total_size"`
+	AverageSize  float64           `json:"average_size"`
+	BucketStats  map[string]int64  `json:"bucket_stats"`
+	ContentTypes map[string]int64  `json:"content_types"`
+	StorageNodes map[string]int64  `json:"storage_nodes"`
+	StatusCounts map[string]int64  `json:"status_counts"`
+	DailyUploads []DailyUploadStat `json:"daily_uploads"`
+	LastUpdated  time.Time         `json:"last_updated"`
 }
 
 // DailyUploadStat 每日上传统计
@@ -70,12 +70,12 @@ type MetadataBackup struct {
 
 // MetadataSyncEvent 元数据同步事件
 type MetadataSyncEvent struct {
-	EventID     string            `json:"event_id"`
-	EventType   string            `json:"event_type"` // create, update, delete
-	ObjectKey   string            `json:"object_key"`
-	Metadata    *Metadata         `json:"metadata,omitempty"`
-	Changes     map[string]string `json:"changes,omitempty"` // field -> old_value
-	Timestamp   time.Time         `json:"timestamp"`
-	SourceNode  string            `json:"source_node"`
-	ReplicatedTo []string         `json:"replicated_to"`
+	EventID      string            `json:"event_id"`
+	EventType    string            `json:"event_type"` // create, update, delete
+	ObjectKey    string            `json:"object_key"`
+	Metadata     *Metadata         `json:"metadata,omitempty"`
+	Changes      map[string]string `json:"changes,omitempty"` // field -> old_value
+	Timestamp    time.Time         `json:"timestamp"`
+	SourceNode   string            `json:"source_node"`
+	ReplicatedTo []string          `json:"replicated_to"`
 }

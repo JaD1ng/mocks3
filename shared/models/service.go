@@ -6,27 +6,27 @@ import (
 
 // ServiceInfo 服务信息
 type ServiceInfo struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Address     string            `json:"address"`
-	Port        int               `json:"port"`
-	Tags        []string          `json:"tags,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	Health      ServiceHealth     `json:"health"`
-	Weight      int               `json:"weight"` // 负载均衡权重
-	Version     string            `json:"version,omitempty"`
-	RegisteredAt time.Time        `json:"registered_at"`
-	LastSeen    time.Time         `json:"last_seen"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Address      string            `json:"address"`
+	Port         int               `json:"port"`
+	Tags         []string          `json:"tags,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	Health       ServiceHealth     `json:"health"`
+	Weight       int               `json:"weight"` // 负载均衡权重
+	Version      string            `json:"version,omitempty"`
+	RegisteredAt time.Time         `json:"registered_at"`
+	LastSeen     time.Time         `json:"last_seen"`
 }
 
 // ServiceHealth 服务健康状态
 type ServiceHealth struct {
-	Status    HealthStatus `json:"status"`
-	CheckURL  string       `json:"check_url,omitempty"`
+	Status    HealthStatus  `json:"status"`
+	CheckURL  string        `json:"check_url,omitempty"`
 	Interval  time.Duration `json:"interval,omitempty"`
 	Timeout   time.Duration `json:"timeout,omitempty"`
-	LastCheck time.Time    `json:"last_check"`
-	Message   string       `json:"message,omitempty"`
+	LastCheck time.Time     `json:"last_check"`
+	Message   string        `json:"message,omitempty"`
 }
 
 // HealthStatus 健康状态
@@ -89,8 +89,8 @@ type HealthCheckResponse struct {
 
 // CheckResult 检查结果
 type CheckResult struct {
-	Status  HealthStatus `json:"status"`
-	Message string       `json:"message,omitempty"`
+	Status  HealthStatus  `json:"status"`
+	Message string        `json:"message,omitempty"`
 	Latency time.Duration `json:"latency,omitempty"`
 }
 
@@ -105,11 +105,11 @@ type ConfigItem struct {
 
 // Metrics 指标数据
 type Metrics struct {
-	ServiceName string                 `json:"service_name"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Counters    map[string]int64       `json:"counters,omitempty"`
-	Gauges      map[string]float64     `json:"gauges,omitempty"`
-	Histograms  map[string][]float64   `json:"histograms,omitempty"`
-	Sets        map[string][]string    `json:"sets,omitempty"`
-	Tags        map[string]string      `json:"tags,omitempty"`
+	ServiceName string               `json:"service_name"`
+	Timestamp   time.Time            `json:"timestamp"`
+	Counters    map[string]int64     `json:"counters,omitempty"`
+	Gauges      map[string]float64   `json:"gauges,omitempty"`
+	Histograms  map[string][]float64 `json:"histograms,omitempty"`
+	Sets        map[string][]string  `json:"sets,omitempty"`
+	Tags        map[string]string    `json:"tags,omitempty"`
 }

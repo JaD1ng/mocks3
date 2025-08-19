@@ -49,12 +49,12 @@ func (s *MetadataService) SaveMetadata(ctx context.Context, metadata *models.Met
 		metadata.ID = existing.ID
 		metadata.Version = existing.Version
 		metadata.CreatedAt = existing.CreatedAt
-		
+
 		if err := s.repo.Update(ctx, metadata); err != nil {
 			s.logger.ErrorContext(ctx, "Failed to update metadata", "error", err)
 			return fmt.Errorf("failed to update metadata: %w", err)
 		}
-		
+
 		s.logger.InfoContext(ctx, "Metadata updated", "bucket", metadata.Bucket, "key", metadata.Key, "version", metadata.Version)
 	} else {
 		// 创建新元数据
@@ -62,7 +62,7 @@ func (s *MetadataService) SaveMetadata(ctx context.Context, metadata *models.Met
 			s.logger.ErrorContext(ctx, "Failed to create metadata", "error", err)
 			return fmt.Errorf("failed to create metadata: %w", err)
 		}
-		
+
 		s.logger.InfoContext(ctx, "Metadata created", "bucket", metadata.Bucket, "key", metadata.Key, "id", metadata.ID)
 	}
 
@@ -181,11 +181,11 @@ func (s *MetadataService) GetStats(ctx context.Context) (*models.Stats, error) {
 		return nil, fmt.Errorf("failed to get statistics: %w", err)
 	}
 
-	s.logger.DebugContext(ctx, "Statistics retrieved", 
-		"total_objects", stats.TotalObjects, 
+	s.logger.DebugContext(ctx, "Statistics retrieved",
+		"total_objects", stats.TotalObjects,
 		"total_size", stats.TotalSize,
 		"buckets", len(stats.BucketStats))
-	
+
 	return stats, nil
 }
 

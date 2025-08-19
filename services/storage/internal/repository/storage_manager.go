@@ -60,7 +60,7 @@ func (sm *StorageManager) WriteToAllNodes(ctx context.Context, object *models.Ob
 			fmt.Printf("Failed to write to node %s: %v\n", node.GetNodeID(), err)
 			continue
 		}
-		
+
 		successCount++
 		fmt.Printf("Step %d: Successfully wrote to node %s\n", i+1, node.GetNodeID())
 
@@ -123,16 +123,16 @@ func (sm *StorageManager) ReadFromBestNode(ctx context.Context, bucket, key stri
 		if err != nil {
 			return nil, fmt.Errorf("failed to get object from third party service: %w", err)
 		}
-		
+
 		fmt.Printf("Successfully fetched from third party service: %s/%s\n", bucket, key)
-		
+
 		// 异步写入到所有节点（缓存第三方数据）
 		go func() {
 			if writeErr := sm.WriteToAllNodes(context.Background(), obj); writeErr != nil {
 				fmt.Printf("Warning: failed to cache third party data: %v\n", writeErr)
 			}
 		}()
-		
+
 		return obj, nil
 	}
 
@@ -240,7 +240,7 @@ func (sm *StorageManager) ListObjects(ctx context.Context, bucket, prefix string
 
 	// 使用第一个健康节点进行列表操作
 	firstNode := healthyNodes[0]
-	
+
 	// 类型断言检查节点是否支持列表操作
 	if lister, ok := firstNode.(*FileStorageNode); ok {
 		return lister.ListObjects(ctx, bucket, prefix, limit)
@@ -258,7 +258,7 @@ func (sm *StorageManager) GetStats(ctx context.Context) (map[string]interface{},
 
 	stats := make(map[string]interface{})
 	nodeStats := make([]map[string]interface{}, 0, len(nodes))
-	
+
 	var totalSize int64
 	var totalFiles int64
 	healthyCount := 0

@@ -21,10 +21,10 @@ func (s *ServerConfig) GetAddress() string {
 
 // CacheConfig 缓存配置
 type CacheConfig struct {
-	TTL        int    `json:"ttl_seconds"`
-	MaxSize    int64  `json:"max_size_mb"`
-	Strategy   string `json:"strategy"`
-	Enabled    bool   `json:"enabled"`
+	TTL      int    `json:"ttl_seconds"`
+	MaxSize  int64  `json:"max_size_mb"`
+	Strategy string `json:"strategy"`
+	Enabled  bool   `json:"enabled"`
 }
 
 // DataSourceConfig 数据源配置
@@ -79,12 +79,12 @@ func Load() *Config {
 				Priority:   1,
 			},
 			{
-				Name:       getEnv("DATASOURCE_2_NAME", "backup-http"),
-				Type:       getEnv("DATASOURCE_2_TYPE", "http"),
-				Endpoint:   getEnv("DATASOURCE_2_ENDPOINT", "https://backup.example.com/api"),
-				Timeout:    getEnvAsInt("DATASOURCE_2_TIMEOUT", 30),
-				Enabled:    getEnvAsBool("DATASOURCE_2_ENABLED", false),
-				Priority:   2,
+				Name:     getEnv("DATASOURCE_2_NAME", "backup-http"),
+				Type:     getEnv("DATASOURCE_2_TYPE", "http"),
+				Endpoint: getEnv("DATASOURCE_2_ENDPOINT", "https://backup.example.com/api"),
+				Timeout:  getEnvAsInt("DATASOURCE_2_TIMEOUT", 30),
+				Enabled:  getEnvAsBool("DATASOURCE_2_ENABLED", false),
+				Priority: 2,
 			},
 		},
 		LogLevel: getEnv("LOG_LEVEL", "info"),

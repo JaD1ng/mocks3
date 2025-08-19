@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"mocks3/services/third-party/internal/service"
 	"mocks3/shared/models"
 	"mocks3/shared/observability/log"
-	"mocks3/services/third-party/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,18 +34,18 @@ func (h *ThirdPartyHandler) RegisterRoutes(router *gin.Engine) {
 		api.POST("/objects", h.PutObject)
 		api.DELETE("/objects/:bucket/:key", h.DeleteObject)
 		api.GET("/objects", h.ListObjects)
-		
+
 		// 元数据操作
 		api.GET("/metadata/:bucket/:key", h.GetObjectMetadata)
-		
+
 		// 数据源管理
 		api.POST("/datasources", h.SetDataSource)
 		api.GET("/datasources", h.GetDataSources)
-		
+
 		// 缓存管理
 		api.POST("/cache", h.CacheObject)
 		api.DELETE("/cache/:bucket/:key", h.InvalidateCache)
-		
+
 		// 统计信息
 		api.GET("/stats", h.GetStats)
 	}
@@ -55,24 +55,24 @@ func (h *ThirdPartyHandler) RegisterRoutes(router *gin.Engine) {
 func (h *ThirdPartyHandler) GetObject(c *gin.Context) {
 	bucket := c.Param("bucket")
 	key := c.Param("key")
-	
+
 	if bucket == "" || key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Bucket and key are required",
 		})
 		return
 	}
-	
+
 	object, err := h.service.GetObject(c.Request.Context(), bucket, key)
 	if err != nil {
-		h.logger.WarnContext(c.Request.Context(), "Object not found", 
+		h.logger.WarnContext(c.Request.Context(), "Object not found",
 			"bucket", bucket, "key", key, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "Object not found",
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, object)
 }
 
@@ -95,14 +95,14 @@ func (h *ThirdPartyHandler) PutObject(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 解码数据
 	var data []byte
 	if req.Data != "" {
 		// 这里应该解码base64数据，简化实现
 		data = []byte(req.Data)
 	}
-	
+
 	object := &models.Object{
 		Bucket:      req.Bucket,
 		Key:         req.Key,
@@ -110,7 +110,7 @@ func (h *ThirdPartyHandler) PutObject(c *gin.Context) {
 		ContentType: req.ContentType,
 		Data:        data,
 	}
-	
+
 	if err := h.service.PutObject(c.Request.Context(), object); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to store object", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -118,7 +118,7 @@ func (h *ThirdPartyHandler) PutObject(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"bucket": object.Bucket,
 		"key":    object.Key,
@@ -130,14 +130,14 @@ func (h *ThirdPartyHandler) PutObject(c *gin.Context) {
 func (h *ThirdPartyHandler) DeleteObject(c *gin.Context) {
 	bucket := c.Param("bucket")
 	key := c.Param("key")
-	
+
 	if bucket == "" || key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Bucket and key are required",
 		})
 		return
 	}
-	
+
 	if err := h.service.DeleteObject(c.Request.Context(), bucket, key); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to delete object", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -145,7 +145,7 @@ func (h *ThirdPartyHandler) DeleteObject(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Object deleted successfully",
 	})
@@ -156,12 +156,12 @@ func (h *ThirdPartyHandler) ListObjects(c *gin.Context) {
 	bucket := c.Query("bucket")
 	prefix := c.Query("prefix")
 	limitStr := c.DefaultQuery("limit", "100")
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		limit = 100
 	}
-	
+
 	objects, err := h.service.ListObjects(c.Request.Context(), bucket, prefix, limit)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list objects", "error", err)
@@ -170,7 +170,7 @@ func (h *ThirdPartyHandler) ListObjects(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"objects": objects,
 		"count":   len(objects),
@@ -181,24 +181,24 @@ func (h *ThirdPartyHandler) ListObjects(c *gin.Context) {
 func (h *ThirdPartyHandler) GetObjectMetadata(c *gin.Context) {
 	bucket := c.Param("bucket")
 	key := c.Param("key")
-	
+
 	if bucket == "" || key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Bucket and key are required",
 		})
 		return
 	}
-	
+
 	metadata, err := h.service.GetObjectMetadata(c.Request.Context(), bucket, key)
 	if err != nil {
-		h.logger.WarnContext(c.Request.Context(), "Metadata not found", 
+		h.logger.WarnContext(c.Request.Context(), "Metadata not found",
 			"bucket", bucket, "key", key, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "Metadata not found",
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, metadata)
 }
 
@@ -219,7 +219,7 @@ func (h *ThirdPartyHandler) SetDataSource(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if err := h.service.SetDataSource(c.Request.Context(), req.Name, req.Config); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to set data source", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -227,7 +227,7 @@ func (h *ThirdPartyHandler) SetDataSource(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Data source set successfully",
 		"name":    req.Name,
@@ -244,7 +244,7 @@ func (h *ThirdPartyHandler) GetDataSources(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"datasources": dataSources,
 		"count":       len(dataSources),
@@ -262,7 +262,7 @@ func (h *ThirdPartyHandler) CacheObject(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if err := h.service.CacheObject(c.Request.Context(), &object); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to cache object", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -270,7 +270,7 @@ func (h *ThirdPartyHandler) CacheObject(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Object cached successfully",
 	})
@@ -280,14 +280,14 @@ func (h *ThirdPartyHandler) CacheObject(c *gin.Context) {
 func (h *ThirdPartyHandler) InvalidateCache(c *gin.Context) {
 	bucket := c.Param("bucket")
 	key := c.Param("key")
-	
+
 	if bucket == "" || key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Bucket and key are required",
 		})
 		return
 	}
-	
+
 	if err := h.service.InvalidateCache(c.Request.Context(), bucket, key); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to invalidate cache", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -295,7 +295,7 @@ func (h *ThirdPartyHandler) InvalidateCache(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Cache invalidated successfully",
 	})
@@ -311,6 +311,6 @@ func (h *ThirdPartyHandler) GetStats(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }

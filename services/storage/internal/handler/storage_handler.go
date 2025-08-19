@@ -103,7 +103,7 @@ func (h *StorageHandler) PutObject(c *gin.Context) {
 	// 设置响应头
 	c.Header("ETag", object.ETag)
 	c.Header("Content-MD5", object.MD5Hash)
-	
+
 	c.Status(http.StatusOK)
 }
 
@@ -315,7 +315,7 @@ func (h *StorageHandler) DeleteObjectAPI(c *gin.Context) {
 func (h *StorageHandler) ListObjectsAPI(c *gin.Context) {
 	bucket := c.Query("bucket")
 	prefix := c.Query("prefix")
-	
+
 	limitStr := c.DefaultQuery("limit", "100")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {

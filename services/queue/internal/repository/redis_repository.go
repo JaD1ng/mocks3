@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mocks3/shared/models"
 	"mocks3/services/queue/internal/config"
+	"mocks3/shared/models"
 	"strconv"
 	"time"
 
@@ -50,10 +50,10 @@ func (r *RedisRepository) AddTask(ctx context.Context, task *models.Task) error 
 	args := &redis.XAddArgs{
 		Stream: r.config.StreamName,
 		Values: map[string]interface{}{
-			"task_id":   task.ID,
-			"task_type": task.Type,
-			"priority":  task.Priority,
-			"data":      string(taskData),
+			"task_id":    task.ID,
+			"task_type":  task.Type,
+			"priority":   task.Priority,
+			"data":       string(taskData),
 			"created_at": task.CreatedAt.Format(time.RFC3339),
 		},
 	}
@@ -120,16 +120,16 @@ func (r *RedisRepository) AckTask(ctx context.Context, streamID string) error {
 func (r *RedisRepository) RejectTask(ctx context.Context, task *models.Task) error {
 	// 增加重试次数
 	task.RetryCount++
-	
+
 	if task.RetryCount >= r.config.MaxRetries {
 		// 超过最大重试次数，标记为失败
 		task.Status = models.TaskStatusFailed
 		task.UpdatedAt = time.Now()
-		
+
 		// 记录到失败队列（可选）
 		failedData, _ := json.Marshal(task)
 		r.client.LPush(ctx, r.config.StreamName+":failed", failedData)
-		
+
 		// 确认原消息
 		return r.AckTask(ctx, task.StreamID)
 	}
@@ -137,7 +137,7 @@ func (r *RedisRepository) RejectTask(ctx context.Context, task *models.Task) err
 	// 重新添加到队列
 	task.Status = models.TaskStatusRetrying
 	task.UpdatedAt = time.Now()
-	
+
 	return r.AddTask(ctx, task)
 }
 
@@ -188,12 +188,12 @@ func (r *RedisRepository) ListTasks(ctx context.Context, status string, limit in
 			if limit > 0 && count >= limit {
 				break
 			}
-			
+
 			task, err := r.messageToTask(msg)
 			if err != nil {
 				continue
 			}
-			
+
 			if status == "" || string(task.Status) == status {
 				task.StreamID = msg.ID
 				tasks = append(tasks, task)

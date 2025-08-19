@@ -82,7 +82,7 @@ func main() {
 				"environment": cfg.Server.Environment,
 			},
 		}
-		
+
 		err = consulManager.RegisterService(ctx, consulConfig)
 		if err != nil {
 			log.Fatalf("Failed to register service: %v", err)
@@ -102,7 +102,7 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(middleware.GinRecoveryMiddleware(middleware.DefaultRecoveryConfig()))
 	router.Use(trace.GinMiddleware("mock-error-service"))
-	
+
 	// 添加指标中间件
 	metricsMiddleware := metric.NewDefaultMiddlewareConfig(metricCollector)
 	router.Use(metricsMiddleware.GinMiddleware())
@@ -122,17 +122,17 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"status":     "healthy",
-			"service":    "mock-error-service",
-			"version":    cfg.Server.Version,
-			"timestamp":  time.Now().Format(time.RFC3339),
+			"status":    "healthy",
+			"service":   "mock-error-service",
+			"version":   cfg.Server.Version,
+			"timestamp": time.Now().Format(time.RFC3339),
 			"config": gin.H{
-				"max_rules":            cfg.ErrorEngine.MaxRules,
-				"enable_statistics":    cfg.ErrorEngine.EnableStatistics,
-				"enable_scheduling":    cfg.ErrorEngine.EnableScheduling,
-				"global_probability":   cfg.Injection.GlobalProbability,
-				"enable_http_errors":   cfg.Injection.EnableHTTPErrors,
-				"enable_network_errors": cfg.Injection.EnableNetworkErrors,
+				"max_rules":              cfg.ErrorEngine.MaxRules,
+				"enable_statistics":      cfg.ErrorEngine.EnableStatistics,
+				"enable_scheduling":      cfg.ErrorEngine.EnableScheduling,
+				"global_probability":     cfg.Injection.GlobalProbability,
+				"enable_http_errors":     cfg.Injection.EnableHTTPErrors,
+				"enable_network_errors":  cfg.Injection.EnableNetworkErrors,
 				"enable_database_errors": cfg.Injection.EnableDatabaseErrors,
 				"enable_storage_errors":  cfg.Injection.EnableStorageErrors,
 			},
@@ -141,7 +141,7 @@ func main() {
 
 	// 显示启动信息
 	logger.Info("Starting mock error service", "address", cfg.Server.GetAddress())
-	logger.Info("Service configuration", 
+	logger.Info("Service configuration",
 		"max_rules", cfg.ErrorEngine.MaxRules,
 		"default_probability", cfg.ErrorEngine.DefaultProbability,
 		"enable_statistics", cfg.ErrorEngine.EnableStatistics,
@@ -226,7 +226,7 @@ func addSampleRules(ctx context.Context, service *service.ErrorInjectorService, 
 		Conditions: []models.ErrorCondition{
 			{
 				Type:     models.ErrorConditionTypeProbability,
-				Operator: "eq", 
+				Operator: "eq",
 				Value:    0.2, // 20% 概率
 			},
 		},

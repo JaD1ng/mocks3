@@ -35,11 +35,11 @@ func (h *MetadataHandler) RegisterRoutes(router *gin.Engine) {
 		v1.GET("/metadata/:bucket/:key", h.GetMetadata)
 		v1.PUT("/metadata/:bucket/:key", h.UpdateMetadata)
 		v1.DELETE("/metadata/:bucket/:key", h.DeleteMetadata)
-		
+
 		// 列表和搜索
 		v1.GET("/metadata", h.ListMetadata)
 		v1.GET("/metadata/search", h.SearchMetadata)
-		
+
 		// 统计信息
 		v1.GET("/stats", h.GetStats)
 		v1.GET("/metadata/count", h.CountObjects)
@@ -75,7 +75,7 @@ func (h *MetadataHandler) GetMetadata(c *gin.Context) {
 
 	metadata, err := h.service.GetMetadata(c.Request.Context(), bucket, key)
 	if err != nil {
-		h.logger.WarnContext(c.Request.Context(), "Metadata not found", 
+		h.logger.WarnContext(c.Request.Context(), "Metadata not found",
 			"bucket", bucket, "key", key, "error", err)
 		utils.SetErrorResponse(c.Writer, http.StatusNotFound, "Metadata not found")
 		return
@@ -122,7 +122,7 @@ func (h *MetadataHandler) DeleteMetadata(c *gin.Context) {
 	key := c.Param("key")
 
 	if err := h.service.DeleteMetadata(c.Request.Context(), bucket, key); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to delete metadata", 
+		h.logger.ErrorContext(c.Request.Context(), "Failed to delete metadata",
 			"bucket", bucket, "key", key, "error", err)
 		utils.SetErrorResponse(c.Writer, http.StatusInternalServerError, "Failed to delete metadata: "+err.Error())
 		return
@@ -138,7 +138,7 @@ func (h *MetadataHandler) DeleteMetadata(c *gin.Context) {
 func (h *MetadataHandler) ListMetadata(c *gin.Context) {
 	bucket := c.Query("bucket")
 	prefix := c.Query("prefix")
-	
+
 	limitStr := c.DefaultQuery("limit", "100")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {

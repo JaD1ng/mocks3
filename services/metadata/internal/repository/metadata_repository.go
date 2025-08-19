@@ -88,7 +88,7 @@ func (r *MetadataRepository) GetByKey(ctx context.Context, bucket, key string) (
 	`
 
 	row := r.db.GetDB().QueryRowContext(ctx, query, bucket, key)
-	
+
 	metadata, err := r.scanMetadata(row)
 	if err != nil {
 		if err == sql.ErrNoRows {

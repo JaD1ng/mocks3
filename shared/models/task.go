@@ -8,21 +8,21 @@ import (
 // Task 任务模型
 type Task struct {
 	ID          string                 `json:"id"`
-	Type        string                 `json:"type"`        // task type
-	Queue       string                 `json:"queue"`       // queue name
-	ObjectKey   string                 `json:"object_key"`  // related object key
-	Data        map[string]interface{} `json:"data"`        // task payload
-	Priority    int                    `json:"priority"`    // task priority (higher number = higher priority)
-	MaxRetries  int                    `json:"max_retries"` // maximum retry attempts
-	RetryCount  int                    `json:"retry_count"` // current retry count
-	Status      TaskStatus             `json:"status"`      // task status
+	Type        string                 `json:"type"`         // task type
+	Queue       string                 `json:"queue"`        // queue name
+	ObjectKey   string                 `json:"object_key"`   // related object key
+	Data        map[string]interface{} `json:"data"`         // task payload
+	Priority    int                    `json:"priority"`     // task priority (higher number = higher priority)
+	MaxRetries  int                    `json:"max_retries"`  // maximum retry attempts
+	RetryCount  int                    `json:"retry_count"`  // current retry count
+	Status      TaskStatus             `json:"status"`       // task status
 	ScheduledAt time.Time              `json:"scheduled_at"` // when to execute
 	StartedAt   *time.Time             `json:"started_at,omitempty"`
 	CompletedAt *time.Time             `json:"completed_at,omitempty"`
 	FailedAt    *time.Time             `json:"failed_at,omitempty"`
 	Error       string                 `json:"error,omitempty"`
 	WorkerID    string                 `json:"worker_id,omitempty"`
-	StreamID    string                 `json:"stream_id,omitempty"`  // Redis stream message ID
+	StreamID    string                 `json:"stream_id,omitempty"` // Redis stream message ID
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
 }
@@ -44,46 +44,46 @@ func generateTaskID() string {
 type TaskStatus string
 
 const (
-	TaskStatusPending    TaskStatus = "pending"
-	TaskStatusRunning    TaskStatus = "running"
-	TaskStatusCompleted  TaskStatus = "completed"
-	TaskStatusFailed     TaskStatus = "failed"
-	TaskStatusRetrying   TaskStatus = "retrying"
-	TaskStatusCancelled  TaskStatus = "cancelled"
+	TaskStatusPending   TaskStatus = "pending"
+	TaskStatusRunning   TaskStatus = "running"
+	TaskStatusCompleted TaskStatus = "completed"
+	TaskStatusFailed    TaskStatus = "failed"
+	TaskStatusRetrying  TaskStatus = "retrying"
+	TaskStatusCancelled TaskStatus = "cancelled"
 )
 
 // TaskType 任务类型
 const (
-	TaskTypeDeleteFile      = "delete_file"
-	TaskTypeReplicateFile   = "replicate_file"
-	TaskTypeCleanupTemp     = "cleanup_temp"
+	TaskTypeDeleteFile        = "delete_file"
+	TaskTypeReplicateFile     = "replicate_file"
+	TaskTypeCleanupTemp       = "cleanup_temp"
 	TaskTypeGenerateThumbnail = "generate_thumbnail"
-	TaskTypeBackupMetadata  = "backup_metadata"
-	TaskTypeSyncMetadata    = "sync_metadata"
-	TaskTypeHealthCheck     = "health_check"
+	TaskTypeBackupMetadata    = "backup_metadata"
+	TaskTypeSyncMetadata      = "sync_metadata"
+	TaskTypeHealthCheck       = "health_check"
 )
 
 // QueueConfig 队列配置
 type QueueConfig struct {
-	Name            string        `json:"name"`
-	MaxLength       int64         `json:"max_length"`
-	MaxConsumers    int           `json:"max_consumers"`
+	Name              string        `json:"name"`
+	MaxLength         int64         `json:"max_length"`
+	MaxConsumers      int           `json:"max_consumers"`
 	VisibilityTimeout time.Duration `json:"visibility_timeout"`
-	RetentionPeriod time.Duration `json:"retention_period"`
-	DeadLetterQueue string        `json:"dead_letter_queue,omitempty"`
-	Priority        bool          `json:"priority"` // whether queue supports priority
+	RetentionPeriod   time.Duration `json:"retention_period"`
+	DeadLetterQueue   string        `json:"dead_letter_queue,omitempty"`
+	Priority          bool          `json:"priority"` // whether queue supports priority
 }
 
 // QueueStats 队列统计
 type QueueStats struct {
-	QueueName       string    `json:"queue_name"`
-	Length          int64     `json:"length"`
-	ConsumerCount   int       `json:"consumer_count"`
-	ProcessingCount int64     `json:"processing_count"`
-	CompletedCount  int64     `json:"completed_count"`
-	FailedCount     int64     `json:"failed_count"`
-	LastMessage     time.Time `json:"last_message"`
-	ThroughputPerSecond float64 `json:"throughput_per_second"`
+	QueueName           string    `json:"queue_name"`
+	Length              int64     `json:"length"`
+	ConsumerCount       int       `json:"consumer_count"`
+	ProcessingCount     int64     `json:"processing_count"`
+	CompletedCount      int64     `json:"completed_count"`
+	FailedCount         int64     `json:"failed_count"`
+	LastMessage         time.Time `json:"last_message"`
+	ThroughputPerSecond float64   `json:"throughput_per_second"`
 }
 
 // Worker 工作节点模型

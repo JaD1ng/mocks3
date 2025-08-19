@@ -9,14 +9,14 @@ type ErrorRule struct {
 	ID          string            `json:"id"`
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
-	Service     string            `json:"service"`     // 目标服务
-	Operation   string            `json:"operation"`   // 目标操作
-	Conditions  []ErrorCondition  `json:"conditions"`  // 触发条件
-	Action      ErrorAction       `json:"action"`      // 错误动作
+	Service     string            `json:"service"`    // 目标服务
+	Operation   string            `json:"operation"`  // 目标操作
+	Conditions  []ErrorCondition  `json:"conditions"` // 触发条件
+	Action      ErrorAction       `json:"action"`     // 错误动作
 	Enabled     bool              `json:"enabled"`
-	Priority    int               `json:"priority"`    // 规则优先级
-	MaxTriggers int               `json:"max_triggers"` // 最大触发次数，0表示无限制
-	Triggered   int               `json:"triggered"`   // 已触发次数
+	Priority    int               `json:"priority"`           // 规则优先级
+	MaxTriggers int               `json:"max_triggers"`       // 最大触发次数，0表示无限制
+	Triggered   int               `json:"triggered"`          // 已触发次数
 	Schedule    *ErrorSchedule    `json:"schedule,omitempty"` // 调度配置
 	Metadata    map[string]string `json:"metadata,omitempty"`
 	CreatedAt   time.Time         `json:"created_at"`
@@ -45,13 +45,13 @@ const (
 
 // ErrorAction 错误动作
 type ErrorAction struct {
-	Type      string                 `json:"type"`      // 动作类型
-	Delay     *time.Duration         `json:"delay,omitempty"`     // 延迟时间
-	HTTPCode  int                    `json:"http_code,omitempty"` // HTTP 状态码
-	Message   string                 `json:"message,omitempty"`   // 错误消息
-	Headers   map[string]string      `json:"headers,omitempty"`   // 响应头
-	Body      string                 `json:"body,omitempty"`      // 响应体
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // 额外数据
+	Type     string                 `json:"type"`                // 动作类型
+	Delay    *time.Duration         `json:"delay,omitempty"`     // 延迟时间
+	HTTPCode int                    `json:"http_code,omitempty"` // HTTP 状态码
+	Message  string                 `json:"message,omitempty"`   // 错误消息
+	Headers  map[string]string      `json:"headers,omitempty"`   // 响应头
+	Body     string                 `json:"body,omitempty"`      // 响应体
+	Metadata map[string]interface{} `json:"metadata,omitempty"`  // 额外数据
 }
 
 // ErrorActionType 错误动作类型
@@ -77,34 +77,34 @@ type ErrorSchedule struct {
 
 // ErrorStats 错误统计
 type ErrorStats struct {
-	TotalRules        int                    `json:"total_rules"`
-	ActiveRules       int                    `json:"active_rules"`
-	TotalTriggers     int64                  `json:"total_triggers"`
-	TriggersLastHour  int64                  `json:"triggers_last_hour"`
-	TriggersToday     int64                  `json:"triggers_today"`
-	RuleStats         map[string]*RuleStat   `json:"rule_stats"`
-	ServiceStats      map[string]*ServiceStat `json:"service_stats"`
-	ErrorTypeStats    map[string]int64       `json:"error_type_stats"`
-	LastReset         time.Time              `json:"last_reset"`
-	LastUpdate        time.Time              `json:"last_update"`
+	TotalRules       int                     `json:"total_rules"`
+	ActiveRules      int                     `json:"active_rules"`
+	TotalTriggers    int64                   `json:"total_triggers"`
+	TriggersLastHour int64                   `json:"triggers_last_hour"`
+	TriggersToday    int64                   `json:"triggers_today"`
+	RuleStats        map[string]*RuleStat    `json:"rule_stats"`
+	ServiceStats     map[string]*ServiceStat `json:"service_stats"`
+	ErrorTypeStats   map[string]int64        `json:"error_type_stats"`
+	LastReset        time.Time               `json:"last_reset"`
+	LastUpdate       time.Time               `json:"last_update"`
 }
 
 // RuleStat 规则统计
 type RuleStat struct {
-	RuleID       string    `json:"rule_id"`
-	RuleName     string    `json:"rule_name"`
-	TotalTriggers int64     `json:"total_triggers"`
-	LastTriggered time.Time `json:"last_triggered"`
+	RuleID        string           `json:"rule_id"`
+	RuleName      string           `json:"rule_name"`
+	TotalTriggers int64            `json:"total_triggers"`
+	LastTriggered time.Time        `json:"last_triggered"`
 	ErrorCounts   map[string]int64 `json:"error_counts"` // error_type -> count
 }
 
 // ServiceStat 服务统计
 type ServiceStat struct {
-	ServiceName   string               `json:"service_name"`
-	TotalRequests int64                `json:"total_requests"`
-	ErrorRequests int64                `json:"error_requests"`
-	ErrorRate     float64              `json:"error_rate"`
-	OperationStats map[string]*OpStat  `json:"operation_stats"`
+	ServiceName    string             `json:"service_name"`
+	TotalRequests  int64              `json:"total_requests"`
+	ErrorRequests  int64              `json:"error_requests"`
+	ErrorRate      float64            `json:"error_rate"`
+	OperationStats map[string]*OpStat `json:"operation_stats"`
 }
 
 // OpStat 操作统计

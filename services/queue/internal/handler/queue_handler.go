@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"mocks3/services/queue/internal/service"
 	"mocks3/shared/models"
 	"mocks3/shared/observability/log"
-	"mocks3/services/queue/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,11 +33,11 @@ func (h *QueueHandler) RegisterRoutes(router *gin.Engine) {
 		api.POST("/tasks", h.AddTask)
 		api.GET("/tasks/:id", h.GetTask)
 		api.GET("/tasks", h.ListTasks)
-		
+
 		// 工作节点管理
 		api.POST("/workers/:id/start", h.StartWorker)
 		api.POST("/workers/:id/stop", h.StopWorker)
-		
+
 		// 统计信息
 		api.GET("/stats", h.GetStats)
 	}

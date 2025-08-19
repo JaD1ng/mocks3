@@ -34,12 +34,12 @@ func (r *RedisConfig) GetAddress() string {
 
 // QueueConfig 队列配置
 type QueueConfig struct {
-	MaxWorkers      int    `json:"max_workers"`
-	MaxRetries      int    `json:"max_retries"`
-	StreamName      string `json:"stream_name"`
-	ConsumerGroup   string `json:"consumer_group"`
-	BatchSize       int    `json:"batch_size"`
-	ProcessTimeout  int    `json:"process_timeout_seconds"`
+	MaxWorkers     int    `json:"max_workers"`
+	MaxRetries     int    `json:"max_retries"`
+	StreamName     string `json:"stream_name"`
+	ConsumerGroup  string `json:"consumer_group"`
+	BatchSize      int    `json:"batch_size"`
+	ProcessTimeout int    `json:"process_timeout_seconds"`
 }
 
 // Config 应用配置

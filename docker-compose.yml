@@ -6,8 +6,8 @@ services:
   # ======= 网关服务 =======
   nginx-gateway:
     build:
-      context: .
-      dockerfile: gateway/Dockerfile
+      context: gateway
+      dockerfile: Dockerfile
     container_name: mocks3-gateway
     ports:
       - "8080:8080"  # S3 API 端口
@@ -258,7 +258,7 @@ services:
 
   # Consul 服务发现
   consul:
-    image: consul:1.17
+    image: consul:1.15
     container_name: mocks3-consul
     ports:
       - "8500:8500"
@@ -276,7 +276,7 @@ services:
       -bootstrap-expect=1 
       -data-dir=/consul/data 
       -config-dir=/consul/config 
-      -ui-config-enabled=true 
+      -ui 
       -client=0.0.0.0 
       -bind=0.0.0.0
 

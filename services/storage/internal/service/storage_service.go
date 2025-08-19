@@ -118,33 +118,33 @@ func (s *StorageService) ReadObject(ctx context.Context, bucket, key string) (*m
 	object, err := s.storageManager.ReadFromBestNode(ctx, bucket, key)
 	if err != nil {
 		s.logger.WarnContext(ctx, "Failed to read from storage nodes", "error", err, "bucket", bucket, "key", key)
-		
+
 		// 如果本地存储失败且第三方服务可用，尝试从第三方服务获取
 		if s.thirdPartyClient != nil {
 			s.logger.InfoContext(ctx, "Trying to read from third-party service", "bucket", bucket, "key", key)
-			
+
 			thirdPartyObject, thirdPartyErr := s.thirdPartyClient.GetObject(ctx, bucket, key)
 			if thirdPartyErr != nil {
 				s.logger.WarnContext(ctx, "Failed to read from third-party service", "error", thirdPartyErr)
 				return nil, fmt.Errorf("failed to read object from storage and third-party: storage_err=%w, third_party_err=%v", err, thirdPartyErr)
 			}
-			
+
 			s.logger.InfoContext(ctx, "Object retrieved from third-party service", "bucket", bucket, "key", key, "size", thirdPartyObject.Size)
-			
+
 			// 异步缓存到本地存储
 			go func() {
 				cacheCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
-				
+
 				if writeErr := s.storageManager.WriteToAllNodes(cacheCtx, thirdPartyObject); writeErr != nil {
-					s.logger.WarnContext(cacheCtx, "Failed to cache third-party object to local storage", 
+					s.logger.WarnContext(cacheCtx, "Failed to cache third-party object to local storage",
 						"error", writeErr, "bucket", bucket, "key", key)
 				} else {
-					s.logger.InfoContext(cacheCtx, "Third-party object cached to local storage", 
+					s.logger.InfoContext(cacheCtx, "Third-party object cached to local storage",
 						"bucket", bucket, "key", key)
 				}
 			}()
-			
+
 			object = thirdPartyObject
 		} else {
 			return nil, fmt.Errorf("failed to read object: %w", err)
@@ -211,7 +211,7 @@ func (s *StorageService) ListObjects(ctx context.Context, req *models.ListObject
 	for i, obj := range objects {
 		objectInfos[i] = *obj
 	}
-	
+
 	response := &models.ListObjectsResponse{
 		Bucket:      req.Bucket,
 		Prefix:      req.Prefix,
@@ -330,7 +330,7 @@ func (s *StorageService) objectToMetadata(object *models.Object) *models.Metadat
 // rollbackStorage 回滚存储操作
 func (s *StorageService) rollbackStorage(ctx context.Context, bucket, key string) {
 	s.logger.WarnContext(ctx, "Rolling back storage operation", "bucket", bucket, "key", key)
-	
+
 	if err := s.storageManager.DeleteFromAllNodes(ctx, bucket, key); err != nil {
 		s.logger.ErrorContext(ctx, "Failed to rollback storage", "error", err)
 	}

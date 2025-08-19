@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"mocks3/services/queue/internal/repository"
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
 	"mocks3/shared/observability/log"
-	"mocks3/services/queue/internal/repository"
 	"sync"
 	"time"
 )
@@ -23,18 +23,18 @@ type QueueService struct {
 
 // Worker 工作节点
 type Worker struct {
-	ID       string
-	service  *QueueService
-	logger   *log.Logger
-	stopCh   chan struct{}
-	running  bool
-	mu       sync.RWMutex
+	ID      string
+	service *QueueService
+	logger  *log.Logger
+	stopCh  chan struct{}
+	running bool
+	mu      sync.RWMutex
 }
 
 // NewQueueService 创建队列服务
 func NewQueueService(repo *repository.RedisRepository, logger *log.Logger) *QueueService {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &QueueService{
 		repo:    repo,
 		logger:  logger,
@@ -251,15 +251,15 @@ func (qs *QueueService) GetQueueStats(ctx context.Context, queueName string) (*m
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 构造QueueStats
 	queueStats := &models.QueueStats{
-		QueueName: queueName,
-		Length: int64(stats["pending_count"].(int64)),
+		QueueName:   queueName,
+		Length:      int64(stats["pending_count"].(int64)),
 		FailedCount: int64(stats["failed_count"].(int64)),
 		LastMessage: time.Now(), // TODO: 从实际数据获取
 	}
-	
+
 	return queueStats, nil
 }
 
@@ -286,14 +286,14 @@ func (qs *QueueService) UnregisterWorker(ctx context.Context, workerID string) e
 func (qs *QueueService) ListWorkers(ctx context.Context) ([]*models.Worker, error) {
 	qs.mu.RLock()
 	defer qs.mu.RUnlock()
-	
+
 	workers := make([]*models.Worker, 0, len(qs.workers))
 	for _, worker := range qs.workers {
 		status := models.WorkerStatusStopped
 		if worker.running {
 			status = models.WorkerStatusRunning
 		}
-		
+
 		modelWorker := &models.Worker{
 			ID:        worker.ID,
 			Name:      worker.ID,
@@ -303,7 +303,7 @@ func (qs *QueueService) ListWorkers(ctx context.Context) ([]*models.Worker, erro
 		}
 		workers = append(workers, modelWorker)
 	}
-	
+
 	return workers, nil
 }
 
@@ -370,7 +370,7 @@ func (w *Worker) processTasks() {
 
 // processTask 处理单个任务
 func (w *Worker) processTask(ctx context.Context, task *models.Task) {
-	w.logger.InfoContext(ctx, "Processing task", 
+	w.logger.InfoContext(ctx, "Processing task",
 		"worker_id", w.ID,
 		"task_id", task.ID,
 		"task_type", task.Type)
@@ -435,20 +435,20 @@ func (w *Worker) processFileDeletion(ctx context.Context, task *models.Task) err
 		return fmt.Errorf("key not specified in task data")
 	}
 
-	w.logger.InfoContext(ctx, "Deleting file", 
-		"bucket", bucket, 
+	w.logger.InfoContext(ctx, "Deleting file",
+		"bucket", bucket,
 		"key", key,
 		"task_id", task.ID)
 
 	// 这里应该调用存储服务来删除文件
 	// 由于我们还没有实现存储服务的接口调用，先模拟处理
 	// TODO: 实现实际的文件删除逻辑
-	
+
 	// 模拟处理时间
 	time.Sleep(100 * time.Millisecond)
 
-	w.logger.InfoContext(ctx, "File deletion completed", 
-		"bucket", bucket, 
+	w.logger.InfoContext(ctx, "File deletion completed",
+		"bucket", bucket,
 		"key", key,
 		"task_id", task.ID)
 

@@ -45,7 +45,7 @@ func (fs *FileStorageNode) Write(ctx context.Context, object *models.Object) err
 
 	// 构建文件路径
 	filePath := fs.buildFilePath(object.Bucket, object.Key)
-	
+
 	// 确保目录存在
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -61,10 +61,10 @@ func (fs *FileStorageNode) Write(ctx context.Context, object *models.Object) err
 
 	// 计算MD5哈希
 	hasher := md5.New()
-	
+
 	// 同时写入文件和哈希计算器
 	multiWriter := io.MultiWriter(file, hasher)
-	
+
 	bytesWritten, err := multiWriter.Write(object.Data)
 	if err != nil {
 		return fmt.Errorf("failed to write file %s: %w", filePath, err)
@@ -185,7 +185,7 @@ func (fs *FileStorageNode) IsHealthy(ctx context.Context) bool {
 // ListObjects 列出对象（目录遍历）
 func (fs *FileStorageNode) ListObjects(ctx context.Context, bucket, prefix string, limit int) ([]*models.ObjectInfo, error) {
 	bucketPath := filepath.Join(fs.basePath, bucket)
-	
+
 	// 检查bucket目录是否存在
 	if _, err := os.Stat(bucketPath); err != nil {
 		if os.IsNotExist(err) {
@@ -217,7 +217,7 @@ func (fs *FileStorageNode) ListObjects(ctx context.Context, bucket, prefix strin
 		if err != nil {
 			return err
 		}
-		
+
 		// 将Windows路径分隔符转换为Unix风格
 		key := filepath.ToSlash(relPath)
 
@@ -231,7 +231,7 @@ func (fs *FileStorageNode) ListObjects(ctx context.Context, bucket, prefix strin
 		if err != nil {
 			return err
 		}
-		
+
 		hash := md5.Sum(data)
 		md5Hash := fmt.Sprintf("%x", hash)
 
@@ -263,7 +263,7 @@ func (fs *FileStorageNode) ListObjects(ctx context.Context, bucket, prefix strin
 // GetStats 获取节点统计信息
 func (fs *FileStorageNode) GetStats(ctx context.Context) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
-	
+
 	// 统计总大小和文件数量
 	var totalSize int64
 	var totalFiles int64
@@ -272,12 +272,12 @@ func (fs *FileStorageNode) GetStats(ctx context.Context) (map[string]interface{}
 		if err != nil {
 			return err
 		}
-		
+
 		if !info.IsDir() {
 			totalSize += info.Size()
 			totalFiles++
 		}
-		
+
 		return nil
 	})
 

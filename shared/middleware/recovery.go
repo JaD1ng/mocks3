@@ -86,7 +86,7 @@ func HTTPRecoveryMiddleware(config *RecoveryConfig) func(http.Handler) http.Hand
 func LoggingRecoveryHandler(enableStackTrace bool) func(*gin.Context, interface{}) {
 	return func(c *gin.Context, recovered interface{}) {
 		log.Printf("Panic recovered in %s %s: %v", c.Request.Method, c.Request.URL.Path, recovered)
-		
+
 		if enableStackTrace {
 			log.Printf("Stack trace:\n%s", debug.Stack())
 		}
@@ -109,13 +109,13 @@ func DetailedRecoveryHandler() func(*gin.Context, interface{}) {
 		log.Printf("Stack trace:\n%s", debug.Stack())
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":      "Internal Server Error",
-			"message":    "An unexpected error occurred",
-			"path":       c.Request.URL.Path,
-			"method":     c.Request.Method,
-			"panic":      fmt.Sprintf("%v", recovered),
-			"stack":      string(debug.Stack()),
-			"headers":    c.Request.Header,
+			"error":   "Internal Server Error",
+			"message": "An unexpected error occurred",
+			"path":    c.Request.URL.Path,
+			"method":  c.Request.Method,
+			"panic":   fmt.Sprintf("%v", recovered),
+			"stack":   string(debug.Stack()),
+			"headers": c.Request.Header,
 		})
 		c.Abort()
 	}

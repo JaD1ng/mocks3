@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"mocks3/shared/models"
 	"mocks3/services/third-party/internal/config"
+	"mocks3/shared/models"
 	"sync"
 	"time"
 )
@@ -20,7 +20,7 @@ func NewDataSourceRepository(configs []config.DataSourceConfig) *DataSourceRepos
 	repo := &DataSourceRepository{
 		dataSources: make(map[string]*models.DataSource),
 	}
-	
+
 	// 初始化数据源
 	for i, cfg := range configs {
 		if cfg.Enabled {
@@ -41,16 +41,16 @@ func NewDataSourceRepository(configs []config.DataSourceConfig) *DataSourceRepos
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
-			
+
 			// 添加额外配置
 			for k, v := range cfg.ExtraConfig {
 				dataSource.Config[k] = v
 			}
-			
+
 			repo.dataSources[dataSource.ID] = dataSource
 		}
 	}
-	
+
 	return repo
 }
 
@@ -58,14 +58,14 @@ func NewDataSourceRepository(configs []config.DataSourceConfig) *DataSourceRepos
 func (r *DataSourceRepository) GetAll(ctx context.Context) ([]models.DataSource, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var sources []models.DataSource
 	for _, ds := range r.dataSources {
 		if ds.Enabled {
 			sources = append(sources, *ds)
 		}
 	}
-	
+
 	return sources, nil
 }
 
@@ -73,16 +73,16 @@ func (r *DataSourceRepository) GetAll(ctx context.Context) ([]models.DataSource,
 func (r *DataSourceRepository) GetByID(ctx context.Context, id string) (*models.DataSource, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	ds, exists := r.dataSources[id]
 	if !exists {
 		return nil, fmt.Errorf("data source not found: %s", id)
 	}
-	
+
 	if !ds.Enabled {
 		return nil, fmt.Errorf("data source disabled: %s", id)
 	}
-	
+
 	return ds, nil
 }
 
@@ -90,14 +90,14 @@ func (r *DataSourceRepository) GetByID(ctx context.Context, id string) (*models.
 func (r *DataSourceRepository) GetByPriority(ctx context.Context) ([]*models.DataSource, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var sources []*models.DataSource
 	for _, ds := range r.dataSources {
 		if ds.Enabled {
 			sources = append(sources, ds)
 		}
 	}
-	
+
 	// 按优先级排序（优先级值越小越优先）
 	for i := 0; i < len(sources)-1; i++ {
 		for j := i + 1; j < len(sources); j++ {
@@ -106,7 +106,7 @@ func (r *DataSourceRepository) GetByPriority(ctx context.Context) ([]*models.Dat
 			}
 		}
 	}
-	
+
 	return sources, nil
 }
 
@@ -114,16 +114,16 @@ func (r *DataSourceRepository) GetByPriority(ctx context.Context) ([]*models.Dat
 func (r *DataSourceRepository) Add(ctx context.Context, dataSource *models.DataSource) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if dataSource.ID == "" {
 		dataSource.ID = fmt.Sprintf("ds-%d", time.Now().Unix())
 	}
-	
+
 	dataSource.CreatedAt = time.Now()
 	dataSource.UpdatedAt = time.Now()
-	
+
 	r.dataSources[dataSource.ID] = dataSource
-	
+
 	return nil
 }
 
@@ -131,14 +131,14 @@ func (r *DataSourceRepository) Add(ctx context.Context, dataSource *models.DataS
 func (r *DataSourceRepository) Update(ctx context.Context, dataSource *models.DataSource) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.dataSources[dataSource.ID]; !exists {
 		return fmt.Errorf("data source not found: %s", dataSource.ID)
 	}
-	
+
 	dataSource.UpdatedAt = time.Now()
 	r.dataSources[dataSource.ID] = dataSource
-	
+
 	return nil
 }
 
@@ -146,13 +146,13 @@ func (r *DataSourceRepository) Update(ctx context.Context, dataSource *models.Da
 func (r *DataSourceRepository) Delete(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.dataSources[id]; !exists {
 		return fmt.Errorf("data source not found: %s", id)
 	}
-	
+
 	delete(r.dataSources, id)
-	
+
 	return nil
 }
 
@@ -160,15 +160,15 @@ func (r *DataSourceRepository) Delete(ctx context.Context, id string) error {
 func (r *DataSourceRepository) Enable(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	ds, exists := r.dataSources[id]
 	if !exists {
 		return fmt.Errorf("data source not found: %s", id)
 	}
-	
+
 	ds.Enabled = true
 	ds.UpdatedAt = time.Now()
-	
+
 	return nil
 }
 
@@ -176,14 +176,14 @@ func (r *DataSourceRepository) Enable(ctx context.Context, id string) error {
 func (r *DataSourceRepository) Disable(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	ds, exists := r.dataSources[id]
 	if !exists {
 		return fmt.Errorf("data source not found: %s", id)
 	}
-	
+
 	ds.Enabled = false
 	ds.UpdatedAt = time.Now()
-	
+
 	return nil
 }

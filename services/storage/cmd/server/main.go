@@ -66,7 +66,7 @@ func main() {
 			"version": cfg.Server.Version,
 		},
 	}
-	
+
 	err = consulManager.RegisterService(ctx, consulConfig)
 	if err != nil {
 		log.Fatalf("Failed to register service: %v", err)
@@ -85,7 +85,7 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(middleware.GinRecoveryMiddleware(middleware.DefaultRecoveryConfig()))
 	router.Use(trace.GinMiddleware("storage-service"))
-	
+
 	// 添加指标中间件
 	metricsMiddleware := metric.NewDefaultMiddlewareConfig(metricCollector)
 	router.Use(metricsMiddleware.GinMiddleware())
