@@ -1,8 +1,12 @@
 # MockS3 Nginx Gateway Dockerfile
 FROM nginx:1.25-alpine
 
-# 安装必要的包
-RUN apk add --no-cache \
+# 安装必要的包，使用重试和镜像
+RUN apk update --no-cache || \
+    (echo "https://mirror.alpinelinux.org/alpine/v3.19/main" > /etc/apk/repositories && \
+     echo "https://mirror.alpinelinux.org/alpine/v3.19/community" >> /etc/apk/repositories && \
+     apk update --no-cache) && \
+    apk add --no-cache \
     curl \
     openssl \
     openssl-dev \

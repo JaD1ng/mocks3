@@ -22,8 +22,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o mock-error-servic
 # Runtime stage
 FROM alpine:latest
 
-# 安装ca证书和时区数据
-RUN apk --no-cache add ca-certificates tzdata
+# 安装ca证书和时区数据，使用重试和镜像
+RUN apk update --no-cache || \
+    (echo "https://mirror.alpinelinux.org/alpine/v3.19/main" > /etc/apk/repositories && \
+     echo "https://mirror.alpinelinux.org/alpine/v3.19/community" >> /etc/apk/repositories && \
+     apk update --no-cache) && \
+    apk add --no-cache ca-certificates tzdata
 
 # 设置时区
 ENV TZ=Asia/Shanghai
