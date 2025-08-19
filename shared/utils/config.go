@@ -89,7 +89,7 @@ func LoadServiceConfig(serviceName string) *ServiceConfig {
 		Environment:    GetEnv("ENVIRONMENT", "development"),
 		LogLevel:       GetEnv("LOG_LEVEL", "info"),
 		ConsulAddr:     GetEnv("CONSUL_ADDR", "localhost:8500"),
-		OTLPEndpoint:   GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
+		OTLPEndpoint:   GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
 		DatabaseURL:    GetEnv("DATABASE_URL", ""),
 		RedisURL:       GetEnv("REDIS_URL", "redis://localhost:6379"),
 		Timeout:        GetEnvDuration("DEFAULT_TIMEOUT", 30*time.Second),

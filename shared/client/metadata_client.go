@@ -32,7 +32,7 @@ func NewMetadataClient(baseURL string, timeout time.Duration) *MetadataClient {
 
 // SaveMetadata 保存元数据
 func (c *MetadataClient) SaveMetadata(ctx context.Context, metadata *models.Metadata) error {
-	url := fmt.Sprintf("%s/metadata", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/metadata", c.baseURL)
 
 	body, err := json.Marshal(metadata)
 	if err != nil {
@@ -61,7 +61,7 @@ func (c *MetadataClient) SaveMetadata(ctx context.Context, metadata *models.Meta
 
 // GetMetadata 获取元数据
 func (c *MetadataClient) GetMetadata(ctx context.Context, bucket, key string) (*models.Metadata, error) {
-	url := fmt.Sprintf("%s/metadata/%s/%s", c.baseURL, url.PathEscape(bucket), url.PathEscape(key))
+	url := fmt.Sprintf("%s/api/v1/metadata/%s/%s", c.baseURL, url.PathEscape(bucket), url.PathEscape(key))
 
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -92,7 +92,7 @@ func (c *MetadataClient) GetMetadata(ctx context.Context, bucket, key string) (*
 
 // UpdateMetadata 更新元数据
 func (c *MetadataClient) UpdateMetadata(ctx context.Context, metadata *models.Metadata) error {
-	url := fmt.Sprintf("%s/metadata/%s/%s", c.baseURL, url.PathEscape(metadata.Bucket), url.PathEscape(metadata.Key))
+	url := fmt.Sprintf("%s/api/v1/metadata/%s/%s", c.baseURL, url.PathEscape(metadata.Bucket), url.PathEscape(metadata.Key))
 
 	body, err := json.Marshal(metadata)
 	if err != nil {
@@ -121,7 +121,7 @@ func (c *MetadataClient) UpdateMetadata(ctx context.Context, metadata *models.Me
 
 // DeleteMetadata 删除元数据
 func (c *MetadataClient) DeleteMetadata(ctx context.Context, bucket, key string) error {
-	url := fmt.Sprintf("%s/metadata/%s/%s", c.baseURL, url.PathEscape(bucket), url.PathEscape(key))
+	url := fmt.Sprintf("%s/api/v1/metadata/%s/%s", c.baseURL, url.PathEscape(bucket), url.PathEscape(key))
 
 	httpReq, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *MetadataClient) DeleteMetadata(ctx context.Context, bucket, key string)
 
 // ListMetadata 列出元数据
 func (c *MetadataClient) ListMetadata(ctx context.Context, bucket, prefix string, limit, offset int) ([]*models.Metadata, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/metadata", c.baseURL))
+	u, err := url.Parse(fmt.Sprintf("%s/api/v1/metadata", c.baseURL))
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
@@ -188,7 +188,7 @@ func (c *MetadataClient) ListMetadata(ctx context.Context, bucket, prefix string
 
 // SearchMetadata 搜索元数据
 func (c *MetadataClient) SearchMetadata(ctx context.Context, req *models.SearchObjectsRequest) (*models.SearchObjectsResponse, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/metadata/search", c.baseURL))
+	u, err := url.Parse(fmt.Sprintf("%s/api/v1/metadata/search", c.baseURL))
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
@@ -231,7 +231,7 @@ func (c *MetadataClient) SearchMetadata(ctx context.Context, req *models.SearchO
 
 // GetStats 获取统计信息
 func (c *MetadataClient) GetStats(ctx context.Context) (*models.Stats, error) {
-	url := fmt.Sprintf("%s/stats", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/stats", c.baseURL)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -258,7 +258,7 @@ func (c *MetadataClient) GetStats(ctx context.Context) (*models.Stats, error) {
 
 // CountObjects 计算对象数量
 func (c *MetadataClient) CountObjects(ctx context.Context, bucket, prefix string) (int64, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/count", c.baseURL))
+	u, err := url.Parse(fmt.Sprintf("%s/api/v1/metadata/count", c.baseURL))
 	if err != nil {
 		return 0, fmt.Errorf("parse url: %w", err)
 	}

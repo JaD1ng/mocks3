@@ -1,0 +1,84 @@
+{
+  "basic_text": {
+    "english": "Hello World! This is a test file with various characters.",
+    "chinese": "你好世界！这是一个包含各种字符的测试文件。",
+    "japanese": "こんにちは世界！これは様々な文字を含むテストファイルです。",
+    "korean": "안녕하세요 세계! 이것은 다양한 문자가 포함된 테스트 파일입니다.",
+    "russian": "Привет мир! Это тестовый файл с различными символами.",
+    "arabic": "مرحبا بالعالم! هذا ملف اختبار يحتوي على أحرف مختلفة.",
+    "emoji": "🌍🚀💻🎉🔥⭐️🌈🎯🎪🎨"
+  },
+  "numbers_and_math": {
+    "integers": [
+      1,
+      42,
+      -17,
+      0,
+      999999
+    ],
+    "floats": [
+      3.14159,
+      -2.718,
+      0.0001,
+      1.23e-10
+    ],
+    "math_symbols": "∑∏∫∆∇∞±×÷≤≥≠≈√∛∜",
+    "fractions": "½⅓¼⅕⅙⅛⅔¾⅖⅗⅘⅚⅝⅞",
+    "superscript": "x²y³z⁴a⁵b⁶c⁷d⁸e⁹f¹⁰",
+    "subscript": "H₂O CO₂ CH₄ NH₃ C₆H₁₂O₆"
+  },
+  "special_characters": {
+    "punctuation": "!@#$%^&*()_+-=[]{}|;':\",./<>?`~",
+    "currency": "$€£¥₹₽₩₪₨₦₡₵₸₴₺₼₾₿",
+    "arrows": "←↑→↓↔↕↖↗↘↙⇐⇑⇒⇓⇔⇕⇖⇗⇘⇙",
+    "geometric": "■□▲△▼▽●○◆◇★☆♠♣♥♦",
+    "musical": "♪♫♬♭♮♯𝄞𝄢𝄡𝄠𝄟𝄝𝄜",
+    "zodiac": "♈♉♊♋♌♍♎♏♐♑♒♓"
+  },
+  "unicode_blocks": {
+    "box_drawing": "┌┬┐├┼┤└┴┘│─╔╦╗╠╬╣╚╩╝║═",
+    "braille": "⠁⠃⠉⠙⠑⠋⠛⠓⠊⠚⠅⠇⠍⠝⠕⠏⠟⠗⠎⠞⠥⠧⠺⠭⠽⠵",
+    "chess": "♔♕♖♗♘♙♚♛♜♝♞♟",
+    "playing_cards": "🂡🂢🂣🂤🂥🂦🂧🂨🂩🂪🂫🂬🂭🂮",
+    "dingbats": "✂✈✉✌✍✎✏✐✑✒✓✔✕✖✗✘✙✚✛✜✝✞✟✠✡✢✣✤✥✦✧✨✩✪✫✬✭✮✯✰✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿❀❁❂❃❄❅❆❇❈❉❊❋❌❍❎❏❐❑❒❓❔❕❖❗❘❙❚❛❜❝❞❟❠❡❢❣❤❥❦❧❨❩❪❫❬❭❮❯❰❱❲❳❴❵❶❷❸❹❺❻❼❽❾❿➀➁➂➃➄➅➆➇➈➉➊➋➌➍➎➏➐➑➒➓➔➕➖➗➘➙➚➛➜➝➞➟➠➡➢➣➤➥➦➧➨➩➪➫➬➭➮➯➰➱➲➳➴➵➶➷➸➹➺➻➼➽➾➿"
+  },
+  "control_and_whitespace": {
+    "tabs_and_spaces": "\\t    \\t  \\t\\t  ",
+    "newlines": "Line 1\\nLine 2\\r\\nLine 3\\n\\rLine 4",
+    "zero_width": "Zero\\u200Bwidth\\u200Cjoiner\\u200Dtest\\uFEFF"
+  },
+  "programming_symbols": {
+    "operators": "++ -- += -= *= /= %= &= |= ^= <<= >>= && || ?? ?. ?:",
+    "brackets": "()[]{}<>⟨⟩⟪⟫⟬⟭⟮⟯",
+    "escape_sequences": "\\\\n\\\\t\\\\r\\\\\\\\\\\\\"\\\\'\\\\/\\\\b\\\\f\\\\u0000\\\\x00"
+  },
+  "data_formats": {
+    "json_special": null,
+    "boolean": true,
+    "array": [
+      1,
+      "string",
+      true,
+      null,
+      {
+        "nested": "object"
+      }
+    ],
+    "nested_object": {
+      "level1": {
+        "level2": {
+          "level3": "deep nesting test"
+        }
+      }
+    }
+  },
+  "edge_cases": {
+    "empty_string": "",
+    "single_char": "a",
+    "very_long_string": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.",
+    "mixed_scripts": "Hello世界مرحباПриветこんにちは안녕하세요",
+    "rtl_text": "مرحبا بالعالم من اليمين إلى اليسار",
+    "combining_chars": "e̊åñ̃ü̈ï̈ö̈",
+    "surrogate_pairs": "𝕳𝖊𝖑𝖑𝖔 𝖂𝖔𝖗𝖑𝖉 🌍🚀💻"
+  }
+}

@@ -30,22 +30,22 @@ log_step() {
 }
 
 # 服务健康检查端点配置
-declare -A SERVICES=(
-    ["Gateway"]="http://localhost:8080/health"
-    ["Metadata"]="http://localhost:8081/health"
-    ["Storage"]="http://localhost:8082/health"
-    ["Queue"]="http://localhost:8083/health"
-    ["Third-Party"]="http://localhost:8084/health"
-    ["Mock Error"]="http://localhost:8085/health"
+SERVICES=(
+    "Gateway http://localhost:8080/health"
+    "Metadata http://metadata-service:8081/health"
+    "Storage http://storage-service:8082/health"
+    "Queue http://queue-service:8083/health"
+    "Third-Party http://third-party-service:8084/health"
+    "Mock-Error http://mock-error-service:8085/health"
 )
 
 # 基础设施健康检查端点
-declare -A INFRASTRUCTURE=(
-    ["Consul"]="http://localhost:8500/v1/status/leader"
-    ["Prometheus"]="http://localhost:9090/-/healthy"
-    ["Grafana"]="http://localhost:3000/api/health"
-    ["Kibana"]="http://localhost:5601/api/status"
-    ["Elasticsearch"]="http://localhost:9200/_cluster/health"
+INFRASTRUCTURE=(
+    "Consul http://localhost:8500/v1/status/leader"
+    "Prometheus http://localhost:9090/-/healthy"
+    "Grafana http://localhost:3000/api/health"
+    "Kibana http://localhost:5601/api/status"
+    "Elasticsearch http://localhost:9200/_cluster/health"
 )
 
 # 检查单个端点健康状态
@@ -55,7 +55,13 @@ check_endpoint() {
     local timeout="${3:-10}"
     
     local status_code
-    status_code=$(curl -o /dev/null -s -w "%{http_code}" --max-time "$timeout" "$url" 2>/dev/null || echo "000")
+    # 如果URL包含非localhost地址，使用docker exec在网络内执行
+    if [[ "$url" =~ metadata-service|storage-service|queue-service|third-party-service|mock-error-service ]]; then
+        # 在consul容器内执行，因为它有curl并且在同一网络中
+        status_code=$(docker exec mocks3-consul curl -o /dev/null -s -w "%{http_code}" --max-time "$timeout" "$url" 2>/dev/null || echo "000")
+    else
+        status_code=$(curl -o /dev/null -s -w "%{http_code}" --max-time "$timeout" "$url" 2>/dev/null || echo "000")
+    fi
     
     if [[ "$status_code" =~ ^(200|201|204)$ ]]; then
         log_info "✅ $name: 健康 (HTTP $status_code)"
@@ -115,9 +121,10 @@ check_services() {
     local healthy=0
     local total=${#SERVICES[@]}
     
-    for service in "${!SERVICES[@]}"; do
-        endpoint=${SERVICES[$service]}
-        if check_endpoint "$service Service" "$endpoint" 10; then
+    for service_entry in "${SERVICES[@]}"; do
+        local name=$(echo "$service_entry" | awk '{print $1}')
+        local endpoint=$(echo "$service_entry" | awk '{print $2}')
+        if check_endpoint "$name Service" "$endpoint" 10; then
             healthy=$((healthy + 1))
         fi
         sleep 1
@@ -139,9 +146,10 @@ check_infrastructure() {
     local healthy=0
     local total=${#INFRASTRUCTURE[@]}
     
-    for component in "${!INFRASTRUCTURE[@]}"; do
-        endpoint=${INFRASTRUCTURE[$component]}
-        if check_endpoint "$component" "$endpoint" 15; then
+    for infra_entry in "${INFRASTRUCTURE[@]}"; do
+        local name=$(echo "$infra_entry" | awk '{print $1}')
+        local endpoint=$(echo "$infra_entry" | awk '{print $2}')
+        if check_endpoint "$name" "$endpoint" 15; then
             healthy=$((healthy + 1))
         fi
         sleep 1

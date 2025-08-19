@@ -32,12 +32,11 @@ receivers:
           relabel_configs:
             - source_labels: [__meta_consul_service]
               target_label: service
-            - source_labels: [__meta_consul_service_address]
+            - source_labels: [__meta_consul_service_address, __meta_consul_service_port]
               target_label: __address__
-            - source_labels: [__meta_consul_service_port]
-              target_label: __address__
-              regex: (.*)
-              replacement: ${1}:${__meta_consul_service_port}
+              separator: ':'
+              regex: '(.+):(.+)'
+              replacement: '$1:$2'
 
 processors:
   # 批处理器 (提高性能)
@@ -92,14 +91,12 @@ exporters:
       deployment: production
 
   # 控制台调试导出器
-  logging:
-    loglevel: info
+  debug:
+    verbosity: normal
 
-  # Jaeger 导出器 (备用链路追踪可视化)
-  jaeger:
-    endpoint: jaeger:14250
-    tls:
-      insecure: true
+  # OTLP HTTP 导出器 (备用链路追踪导出)
+  otlphttp:
+    endpoint: http://jaeger:14268/api/traces
 
 extensions:
   # 健康检查
@@ -124,23 +121,21 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource, attributes, probabilistic_sampler]
-      exporters: [elasticsearch, logging]
+      exporters: [elasticsearch, debug]
 
     # 指标管道
     metrics:
       receivers: [otlp, prometheus]
       processors: [memory_limiter, batch, resource]
-      exporters: [prometheus, logging]
+      exporters: [prometheus, debug]
 
     # 日志管道
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [elasticsearch, logging]
+      exporters: [elasticsearch, debug]
 
   # 遥测配置
   telemetry:
     logs:
       level: info
-    metrics:
-      address: 0.0.0.0:8888

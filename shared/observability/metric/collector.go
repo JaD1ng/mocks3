@@ -185,7 +185,7 @@ func NewDefaultCollector(serviceName string) (*Collector, error) {
 		ServiceName:    serviceName,
 		ServiceVersion: getEnv("SERVICE_VERSION", "1.0.0"),
 		Environment:    getEnv("ENVIRONMENT", "development"),
-		OTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
+		OTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
 		ExportInterval: 30 * time.Second,
 	}
 

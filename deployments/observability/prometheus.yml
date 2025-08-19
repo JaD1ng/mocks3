@@ -100,11 +100,7 @@ scrape_configs:
       - targets: []
         # - 'cadvisor:8080'
 
-# 存储配置
-storage:
-  tsdb:
-    retention.time: 15d
-    retention.size: 50GB
+# 存储配置 (retention.time 和 retention.size 通过命令行参数设置)
 
 # 远程写入配置 (可选)
 # remote_write:

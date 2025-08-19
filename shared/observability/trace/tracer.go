@@ -165,7 +165,7 @@ func NewDefaultTracerProvider(serviceName string) (*TracerProvider, error) {
 		ServiceName:    serviceName,
 		ServiceVersion: os.Getenv("SERVICE_VERSION"),
 		Environment:    getEnv("ENVIRONMENT", "development"),
-		OTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
+		OTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
 		SamplingRatio:  1.0, // 开发环境全量采样
 	}
 

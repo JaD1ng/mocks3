@@ -12,10 +12,10 @@
 ### 一键部署
 ```bash
 # 推荐方式：自动构建+启动
-docker-compose up -d
+make build-all && make up
 
-# 或使用Makefile
-make up
+# 或自动构建+启动
+docker-compose up -d
 
 # 手动分步（仅在需要单独构建时使用）
 make build-all             # 仅构建镜像

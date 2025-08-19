@@ -46,11 +46,17 @@ services:
       - ENVIRONMENT=production
       - LOG_LEVEL=info
       - DATABASE_URL=postgres://mocks3:password@postgres:5432/mocks3?sslmode=disable
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=mocks3
+      - DB_PASSWORD=password
+      - DB_DATABASE=mocks3
+      - DB_SSL_MODE=disable
       - CONSUL_ADDR=consul:8500
       - CONSUL_ENABLED=true
       # OpenTelemetry 配置
       - OTEL_SERVICE_NAME=metadata-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318
       - OTEL_RESOURCE_ATTRIBUTES=service.name=metadata-service,service.version=1.0.0
     networks:
       - mocks3-network
@@ -85,7 +91,7 @@ services:
       - CONSUL_ENABLED=true
       # OpenTelemetry 配置
       - OTEL_SERVICE_NAME=storage-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318
       - OTEL_RESOURCE_ATTRIBUTES=service.name=storage-service,service.version=1.0.0
     volumes:
       - storage_data:/data/storage
@@ -115,6 +121,8 @@ services:
       - ENVIRONMENT=production
       - LOG_LEVEL=info
       - REDIS_ADDR=redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=
       - REDIS_DB=0
       - QUEUE_WORKER_COUNT=5
@@ -124,7 +132,7 @@ services:
       - CONSUL_ENABLED=true
       # OpenTelemetry 配置
       - OTEL_SERVICE_NAME=queue-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318
       - OTEL_RESOURCE_ATTRIBUTES=service.name=queue-service,service.version=1.0.0
     networks:
       - mocks3-network
@@ -159,7 +167,7 @@ services:
       - CONSUL_ENABLED=true
       # OpenTelemetry 配置
       - OTEL_SERVICE_NAME=third-party-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318
       - OTEL_RESOURCE_ATTRIBUTES=service.name=third-party-service,service.version=1.0.0
     networks:
       - mocks3-network
@@ -202,7 +210,7 @@ services:
       - INJECTION_GLOBAL_PROBABILITY=1.0
       # OpenTelemetry 配置
       - OTEL_SERVICE_NAME=mock-error-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318
       - OTEL_RESOURCE_ATTRIBUTES=service.name=mock-error-service,service.version=1.0.0
     networks:
       - mocks3-network
