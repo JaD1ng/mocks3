@@ -1,0 +1,99 @@
+# MockS3 Queue Service 配置文件
+
+# 服务基本配置
+server:
+  host: "0.0.0.0"
+  port: 8083
+  environment: "development"
+  version: "1.0.0"
+
+# Redis 配置
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+  max_retries: 3
+  min_retry_backoff: "8ms"
+  max_retry_backoff: "512ms"
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+  pool_size: 10
+  min_idle_conns: 5
+  max_conn_age: "30m"
+  pool_timeout: "4s"
+  idle_timeout: "5m"
+  idle_check_frequency: "1m"
+
+# 队列配置
+queue:
+  max_workers: 3
+  max_retries: 3
+  stream_name: "mocks3:tasks"
+  consumer_group: "queue-workers"
+  batch_size: 10
+  process_timeout: 30
+  retry_delay: "5s"
+  max_retry_delay: "1m"
+  dead_letter_queue: "mocks3:failed-tasks"
+  enable_dlq: true
+
+# 任务类型配置
+task_types:
+  - name: "object_created"
+    priority: 1
+    timeout: "30s"
+    max_retries: 3
+  - name: "object_deleted"
+    priority: 2
+    timeout: "10s"
+    max_retries: 2
+  - name: "metadata_sync"
+    priority: 3
+    timeout: "60s"
+    max_retries: 5
+  - name: "cleanup"
+    priority: 10
+    timeout: "300s"
+    max_retries: 1
+
+# 可观测性配置
+observability:
+  service_name: "queue-service"
+  service_version: "1.0.0"
+  environment: "development"
+  otlp_endpoint: "localhost:4318"
+  log_level: "info"
+  sampling_ratio: 1.0
+  export_interval: "30s"
+
+# Consul 配置
+consul:
+  address: "localhost:8500"
+  enabled: true
+  register: true
+  health_check_interval: "10s"
+  deregister_critical_after: "1m"
+
+# 健康检查配置
+health:
+  check_interval: "30s"
+  timeout: "5s"
+  endpoint: "/health"
+
+# 性能配置
+performance:
+  max_connections: 500
+  read_timeout: "10s"
+  write_timeout: "10s"
+  idle_timeout: "60s"
+  request_size_limit: "1MB"
+
+# 监控配置
+monitoring:
+  enable_metrics: true
+  metrics_interval: "10s"
+  track_queue_depth: true
+  track_processing_time: true
+  track_error_rate: true

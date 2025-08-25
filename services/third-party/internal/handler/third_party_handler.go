@@ -6,7 +6,7 @@ import (
 
 	"mocks3/services/third-party/internal/service"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +14,11 @@ import (
 // ThirdPartyHandler 第三方服务处理器
 type ThirdPartyHandler struct {
 	service *service.ThirdPartyService
-	logger  *log.Logger
+	logger  *observability.Logger
 }
 
 // NewThirdPartyHandler 创建第三方服务处理器
-func NewThirdPartyHandler(service *service.ThirdPartyService, logger *log.Logger) *ThirdPartyHandler {
+func NewThirdPartyHandler(service *service.ThirdPartyService, logger *observability.Logger) *ThirdPartyHandler {
 	return &ThirdPartyHandler{
 		service: service,
 		logger:  logger,

@@ -1,0 +1,69 @@
+# MockS3 生产环境配置
+
+# 环境信息
+environment:
+  name: "production"
+  description: "生产环境"
+
+# 服务端口配置
+services:
+  gateway: 8080
+  metadata: 8081
+  storage: 8082
+  queue: 8083
+  third_party: 8084
+  mock_error: 8085
+
+# 数据库配置
+database:
+  host: "${DB_HOST}"
+  port: "${DB_PORT:5432}"
+  database: "${DB_NAME:mocks3}"
+  username: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+  ssl_mode: "require"
+
+# Redis 配置
+redis:
+  host: "${REDIS_HOST}"
+  port: "${REDIS_PORT:6379}"
+  password: "${REDIS_PASSWORD}"
+  db: 0
+
+# Consul 配置
+consul:
+  host: "${CONSUL_HOST}"
+  port: "${CONSUL_PORT:8500}"
+  datacenter: "${CONSUL_DATACENTER:dc1}"
+  token: "${CONSUL_TOKEN}"
+
+# 可观测性配置
+observability:
+  otlp_endpoint: "${OTEL_EXPORTER_OTLP_ENDPOINT}"
+  log_level: "info"
+  enable_debug: false
+  sampling_ratio: 0.1
+
+# 生产特定配置
+production:
+  enable_hot_reload: false
+  enable_debug_endpoints: false
+  disable_auth: false
+  mock_external_services: false
+  cors_enabled: false
+  max_request_size: "100MB"
+  rate_limit_enabled: true
+  
+# 安全配置
+security:
+  enable_tls: true
+  tls_cert_path: "${TLS_CERT_PATH}"
+  tls_key_path: "${TLS_KEY_PATH}"
+  enable_mtls: false
+  
+# 性能配置
+performance:
+  max_connections: 1000
+  connection_timeout: "30s"
+  read_timeout: "30s"
+  write_timeout: "30s"

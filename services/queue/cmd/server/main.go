@@ -9,9 +9,7 @@ import (
 	"mocks3/services/queue/internal/repository"
 	"mocks3/services/queue/internal/service"
 	"mocks3/shared/middleware"
-	logger "mocks3/shared/observability/log"
-	"mocks3/shared/observability/metric"
-	"mocks3/shared/observability/trace"
+	"mocks3/shared/observability"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,22 +23,22 @@ func main() {
 	// 加载配置
 	cfg := config.Load()
 
-	// 初始化日志器
-	logger := logger.NewLogger("queue-service", logger.LogLevel(cfg.LogLevel))
-
-	// 初始化追踪器
-	tracerProvider, err := trace.NewDefaultTracerProvider("queue-service")
-	if err != nil {
-		log.Fatalf("Failed to initialize tracer: %v", err)
+	// 初始化统一可观测性
+	obsConfig := &observability.Config{
+		ServiceName:    "queue-service",
+		ServiceVersion: "1.0.0",
+		Environment:    cfg.Server.Environment,
+		OTLPEndpoint:   "http://localhost:4318",
+		LogLevel:       cfg.LogLevel,
 	}
-	defer tracerProvider.Shutdown(context.Background())
 
-	// 初始化指标收集器
-	metricCollector, err := metric.NewDefaultCollector("queue-service")
+	obs, err := observability.New(context.Background(), obsConfig)
 	if err != nil {
-		log.Fatalf("Failed to initialize metrics: %v", err)
+		log.Fatalf("Failed to initialize observability: %v", err)
 	}
-	defer metricCollector.Shutdown(context.Background())
+	defer obs.Shutdown(context.Background())
+
+	logger := obs.Logger()
 
 	// 初始化Consul管理器
 	consulManager, err := middleware.NewDefaultConsulManager("queue-service")
@@ -82,9 +80,12 @@ func main() {
 	for i := 1; i <= cfg.Queue.MaxWorkers; i++ {
 		workerID := fmt.Sprintf("worker-%d", i)
 		if err := queueService.StartWorker(ctx, workerID); err != nil {
-			logger.Error("Failed to start worker", "worker_id", workerID, "error", err)
+			logger.Error(context.Background(), "Failed to start worker", 
+				observability.String("worker_id", workerID), 
+				observability.String("error", err.Error()))
 		} else {
-			logger.Info("Started worker", "worker_id", workerID)
+			logger.Info(context.Background(), "Started worker", 
+				observability.String("worker_id", workerID))
 		}
 	}
 
@@ -99,11 +100,8 @@ func main() {
 	// 添加中间件
 	router.Use(gin.Logger())
 	router.Use(middleware.GinRecoveryMiddleware(middleware.DefaultRecoveryConfig()))
-	router.Use(trace.GinMiddleware("queue-service"))
-
-	// 添加指标中间件
-	metricsMiddleware := metric.NewDefaultMiddlewareConfig(metricCollector)
-	router.Use(metricsMiddleware.GinMiddleware())
+	// 使用统一可观测性中间件
+	router.Use(obs.GinMiddleware())
 
 	// 设置路由
 	queueHandler.RegisterRoutes(router)
@@ -138,7 +136,8 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		logger.Info("Starting queue service", "address", cfg.Server.GetAddress())
+		logger.Info(context.Background(), "Starting queue service", 
+			observability.String("address", cfg.Server.GetAddress()))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -149,7 +148,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down queue service...")
+	logger.Info(context.Background(), "Shutting down queue service...")
 
 	// 优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -157,7 +156,8 @@ func main() {
 
 	// 停止队列服务
 	if err := queueService.Stop(); err != nil {
-		logger.Error("Failed to stop queue service", "error", err)
+		logger.Error(context.Background(), "Failed to stop queue service", 
+			observability.String("error", err.Error()))
 	}
 
 	// 关闭HTTP服务器
@@ -165,5 +165,5 @@ func main() {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	logger.Info("Queue service stopped")
+	logger.Info(context.Background(), "Queue service stopped")
 }

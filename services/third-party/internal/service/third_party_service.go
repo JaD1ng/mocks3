@@ -8,7 +8,7 @@ import (
 	"mocks3/services/third-party/internal/repository"
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"net/http"
 	"strings"
 	"time"
@@ -18,7 +18,7 @@ import (
 type ThirdPartyService struct {
 	dataSourceRepo *repository.DataSourceRepository
 	cacheRepo      *repository.CacheRepository
-	logger         *log.Logger
+	logger         *observability.Logger
 	httpClient     *http.Client
 }
 
@@ -26,7 +26,7 @@ type ThirdPartyService struct {
 func NewThirdPartyService(
 	dataSourceRepo *repository.DataSourceRepository,
 	cacheRepo *repository.CacheRepository,
-	logger *log.Logger,
+	logger *observability.Logger,
 ) *ThirdPartyService {
 	return &ThirdPartyService{
 		dataSourceRepo: dataSourceRepo,
@@ -40,11 +40,15 @@ func NewThirdPartyService(
 
 // GetObject 获取对象
 func (s *ThirdPartyService) GetObject(ctx context.Context, bucket, key string) (*models.Object, error) {
-	s.logger.InfoContext(ctx, "Getting object from third-party sources", "bucket", bucket, "key", key)
+	s.logger.Info(ctx, "Getting object from third-party sources", 
+		observability.String("bucket", bucket), 
+		observability.String("key", key))
 
 	// 1. 首先尝试从缓存获取
 	if cachedObj, err := s.cacheRepo.Get(ctx, bucket, key); err == nil {
-		s.logger.InfoContext(ctx, "Object found in cache", "bucket", bucket, "key", key)
+		s.logger.Info(ctx, "Object found in cache", 
+			observability.String("bucket", bucket), 
+			observability.String("key", key))
 		return cachedObj, nil
 	}
 
@@ -55,22 +59,28 @@ func (s *ThirdPartyService) GetObject(ctx context.Context, bucket, key string) (
 	}
 
 	for _, ds := range dataSources {
-		s.logger.InfoContext(ctx, "Trying data source", "source", ds.Name, "type", ds.Type)
+		s.logger.Info(ctx, "Trying data source", 
+			observability.String("source", ds.Name), 
+			observability.String("type", ds.Type))
 
 		object, err := s.fetchFromDataSource(ctx, ds, bucket, key)
 		if err != nil {
-			s.logger.WarnContext(ctx, "Failed to fetch from data source",
-				"source", ds.Name, "error", err)
+			s.logger.Warn(ctx, "Failed to fetch from data source",
+				observability.String("source", ds.Name), 
+				observability.String("error", err.Error()))
 			continue
 		}
 
 		// 成功获取，缓存对象
 		if cacheErr := s.cacheRepo.Set(ctx, bucket, key, object); cacheErr != nil {
-			s.logger.WarnContext(ctx, "Failed to cache object", "error", cacheErr)
+			s.logger.Warn(ctx, "Failed to cache object", 
+				observability.String("error", cacheErr.Error()))
 		}
 
-		s.logger.InfoContext(ctx, "Object retrieved successfully",
-			"bucket", bucket, "key", key, "source", ds.Name)
+		s.logger.Info(ctx, "Object retrieved successfully",
+			observability.String("bucket", bucket), 
+			observability.String("key", key), 
+			observability.String("source", ds.Name))
 		return object, nil
 	}
 
@@ -79,8 +89,9 @@ func (s *ThirdPartyService) GetObject(ctx context.Context, bucket, key string) (
 
 // PutObject 存储对象
 func (s *ThirdPartyService) PutObject(ctx context.Context, object *models.Object) error {
-	s.logger.InfoContext(ctx, "Storing object to third-party sources",
-		"bucket", object.Bucket, "key", object.Key)
+	s.logger.Info(ctx, "Storing object to third-party sources",
+		observability.String("bucket", object.Bucket), 
+		observability.String("key", object.Key))
 
 	// 获取所有可用数据源
 	dataSources, err := s.dataSourceRepo.GetByPriority(ctx)
@@ -91,18 +102,22 @@ func (s *ThirdPartyService) PutObject(ctx context.Context, object *models.Object
 	// 存储到第一个可用的数据源
 	for _, ds := range dataSources {
 		if err := s.putToDataSource(ctx, ds, object); err != nil {
-			s.logger.WarnContext(ctx, "Failed to store to data source",
-				"source", ds.Name, "error", err)
+			s.logger.Warn(ctx, "Failed to store to data source",
+				observability.String("source", ds.Name), 
+				observability.String("error", err.Error()))
 			continue
 		}
 
 		// 存储成功，同时缓存
 		if cacheErr := s.cacheRepo.Set(ctx, object.Bucket, object.Key, object); cacheErr != nil {
-			s.logger.WarnContext(ctx, "Failed to cache object", "error", cacheErr)
+			s.logger.Warn(ctx, "Failed to cache object", 
+				observability.String("error", cacheErr.Error()))
 		}
 
-		s.logger.InfoContext(ctx, "Object stored successfully",
-			"bucket", object.Bucket, "key", object.Key, "source", ds.Name)
+		s.logger.Info(ctx, "Object stored successfully",
+			observability.String("bucket", object.Bucket), 
+			observability.String("key", object.Key), 
+			observability.String("source", ds.Name))
 		return nil
 	}
 
@@ -111,7 +126,9 @@ func (s *ThirdPartyService) PutObject(ctx context.Context, object *models.Object
 
 // DeleteObject 删除对象
 func (s *ThirdPartyService) DeleteObject(ctx context.Context, bucket, key string) error {
-	s.logger.InfoContext(ctx, "Deleting object from third-party sources", "bucket", bucket, "key", key)
+	s.logger.Info(ctx, "Deleting object from third-party sources", 
+		observability.String("bucket", bucket), 
+		observability.String("key", key))
 
 	// 从缓存中删除
 	s.cacheRepo.Delete(ctx, bucket, key)
@@ -127,8 +144,9 @@ func (s *ThirdPartyService) DeleteObject(ctx context.Context, bucket, key string
 
 	for _, ds := range dataSources {
 		if err := s.deleteFromDataSource(ctx, &ds, bucket, key); err != nil {
-			s.logger.WarnContext(ctx, "Failed to delete from data source",
-				"source", ds.Name, "error", err)
+			s.logger.Warn(ctx, "Failed to delete from data source",
+				observability.String("source", ds.Name), 
+				observability.String("error", err.Error()))
 			lastErr = err
 		} else {
 			successCount++
@@ -139,14 +157,18 @@ func (s *ThirdPartyService) DeleteObject(ctx context.Context, bucket, key string
 		return fmt.Errorf("failed to delete from any data source: %w", lastErr)
 	}
 
-	s.logger.InfoContext(ctx, "Object deletion completed",
-		"bucket", bucket, "key", key, "success_count", successCount)
+	s.logger.Info(ctx, "Object deletion completed",
+		observability.String("bucket", bucket), 
+		observability.String("key", key), 
+		observability.Int("success_count", successCount))
 	return nil
 }
 
 // GetObjectMetadata 获取对象元数据
 func (s *ThirdPartyService) GetObjectMetadata(ctx context.Context, bucket, key string) (*models.Metadata, error) {
-	s.logger.DebugContext(ctx, "Getting object metadata", "bucket", bucket, "key", key)
+	s.logger.Debug(ctx, "Getting object metadata", 
+		observability.String("bucket", bucket), 
+		observability.String("key", key))
 
 	// 尝试从对象获取元数据
 	object, err := s.GetObject(ctx, bucket, key)
@@ -177,7 +199,10 @@ func (s *ThirdPartyService) GetObjectMetadata(ctx context.Context, bucket, key s
 
 // ListObjects 列出对象
 func (s *ThirdPartyService) ListObjects(ctx context.Context, bucket, prefix string, limit int) ([]*models.Metadata, error) {
-	s.logger.DebugContext(ctx, "Listing objects", "bucket", bucket, "prefix", prefix, "limit", limit)
+	s.logger.Debug(ctx, "Listing objects", 
+		observability.String("bucket", bucket), 
+		observability.String("prefix", prefix), 
+		observability.Int("limit", limit))
 
 	// 这里简化实现，实际应该查询数据源
 	// 目前返回空列表，表示第三方服务不支持列表操作
@@ -186,7 +211,8 @@ func (s *ThirdPartyService) ListObjects(ctx context.Context, bucket, prefix stri
 
 // SetDataSource 设置数据源
 func (s *ThirdPartyService) SetDataSource(ctx context.Context, name, config string) error {
-	s.logger.InfoContext(ctx, "Setting data source", "name", name)
+	s.logger.Info(ctx, "Setting data source", 
+		observability.String("name", name))
 
 	// 解析配置 (简化实现)
 	dataSource := &models.DataSource{
@@ -202,25 +228,29 @@ func (s *ThirdPartyService) SetDataSource(ctx context.Context, name, config stri
 
 // GetDataSources 获取数据源列表
 func (s *ThirdPartyService) GetDataSources(ctx context.Context) ([]models.DataSource, error) {
-	s.logger.DebugContext(ctx, "Getting data sources")
+	s.logger.Debug(ctx, "Getting data sources")
 	return s.dataSourceRepo.GetAll(ctx)
 }
 
 // CacheObject 缓存对象
 func (s *ThirdPartyService) CacheObject(ctx context.Context, object *models.Object) error {
-	s.logger.DebugContext(ctx, "Caching object", "bucket", object.Bucket, "key", object.Key)
+	s.logger.Debug(ctx, "Caching object", 
+		observability.String("bucket", object.Bucket), 
+		observability.String("key", object.Key))
 	return s.cacheRepo.Set(ctx, object.Bucket, object.Key, object)
 }
 
 // InvalidateCache 清除缓存
 func (s *ThirdPartyService) InvalidateCache(ctx context.Context, bucket, key string) error {
-	s.logger.DebugContext(ctx, "Invalidating cache", "bucket", bucket, "key", key)
+	s.logger.Debug(ctx, "Invalidating cache", 
+		observability.String("bucket", bucket), 
+		observability.String("key", key))
 	return s.cacheRepo.Delete(ctx, bucket, key)
 }
 
 // GetStats 获取统计信息
 func (s *ThirdPartyService) GetStats(ctx context.Context) (map[string]interface{}, error) {
-	s.logger.DebugContext(ctx, "Getting statistics")
+	s.logger.Debug(ctx, "Getting statistics")
 
 	cacheStats := s.cacheRepo.GetStats()
 	dataSources, _ := s.dataSourceRepo.GetAll(ctx)
@@ -245,7 +275,7 @@ func (s *ThirdPartyService) GetStats(ctx context.Context) (map[string]interface{
 
 // HealthCheck 健康检查
 func (s *ThirdPartyService) HealthCheck(ctx context.Context) error {
-	s.logger.DebugContext(ctx, "Performing health check")
+	s.logger.Debug(ctx, "Performing health check")
 
 	// 检查数据源
 	dataSources, err := s.dataSourceRepo.GetAll(ctx)
@@ -275,7 +305,8 @@ func (s *ThirdPartyService) fetchFromDataSource(ctx context.Context, ds *models.
 // fetchFromS3 从S3兼容数据源获取
 func (s *ThirdPartyService) fetchFromS3(ctx context.Context, ds *models.DataSource, bucket, key string) (*models.Object, error) {
 	// 模拟S3访问，实际实现需要AWS SDK
-	s.logger.DebugContext(ctx, "Fetching from S3 data source", "source", ds.Name)
+	s.logger.Debug(ctx, "Fetching from S3 data source", 
+		observability.String("source", ds.Name))
 
 	// 模拟数据
 	object := &models.Object{
@@ -293,7 +324,8 @@ func (s *ThirdPartyService) fetchFromS3(ctx context.Context, ds *models.DataSour
 
 // fetchFromHTTP 从HTTP数据源获取
 func (s *ThirdPartyService) fetchFromHTTP(ctx context.Context, ds *models.DataSource, bucket, key string) (*models.Object, error) {
-	s.logger.DebugContext(ctx, "Fetching from HTTP data source", "source", ds.Name)
+	s.logger.Debug(ctx, "Fetching from HTTP data source", 
+		observability.String("source", ds.Name))
 
 	endpoint := ds.Config["endpoint"]
 	if endpoint == "" {
@@ -353,14 +385,16 @@ func (s *ThirdPartyService) putToDataSource(ctx context.Context, ds *models.Data
 
 // putToS3 存储到S3
 func (s *ThirdPartyService) putToS3(ctx context.Context, ds *models.DataSource, object *models.Object) error {
-	s.logger.DebugContext(ctx, "Storing to S3 data source", "source", ds.Name)
+	s.logger.Debug(ctx, "Storing to S3 data source", 
+		observability.String("source", ds.Name))
 	// 模拟存储成功
 	return nil
 }
 
 // putToHTTP 存储到HTTP
 func (s *ThirdPartyService) putToHTTP(ctx context.Context, ds *models.DataSource, object *models.Object) error {
-	s.logger.DebugContext(ctx, "Storing to HTTP data source", "source", ds.Name)
+	s.logger.Debug(ctx, "Storing to HTTP data source", 
+		observability.String("source", ds.Name))
 
 	endpoint := ds.Config["endpoint"]
 	if endpoint == "" {
@@ -399,14 +433,16 @@ func (s *ThirdPartyService) deleteFromDataSource(ctx context.Context, ds *models
 
 // deleteFromS3 从S3删除
 func (s *ThirdPartyService) deleteFromS3(ctx context.Context, ds *models.DataSource, bucket, key string) error {
-	s.logger.DebugContext(ctx, "Deleting from S3 data source", "source", ds.Name)
+	s.logger.Debug(ctx, "Deleting from S3 data source", 
+		observability.String("source", ds.Name))
 	// 模拟删除成功
 	return nil
 }
 
 // deleteFromHTTP 从HTTP删除
 func (s *ThirdPartyService) deleteFromHTTP(ctx context.Context, ds *models.DataSource, bucket, key string) error {
-	s.logger.DebugContext(ctx, "Deleting from HTTP data source", "source", ds.Name)
+	s.logger.Debug(ctx, "Deleting from HTTP data source", 
+		observability.String("source", ds.Name))
 	// 模拟删除成功
 	return nil
 }

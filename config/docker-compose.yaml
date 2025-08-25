@@ -1,0 +1,302 @@
+# MockS3 Docker Compose 配置
+
+version: '3.8'
+
+services:
+  # 基础设施服务
+  consul:
+    image: consul:1.15
+    container_name: mocks3-consul
+    ports:
+      - "8500:8500"
+    command: >
+      agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+      -data-dir=/consul/data -config-dir=/consul/config
+    volumes:
+      - consul-data:/consul/data
+      - ./deployments/consul/config:/consul/config
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    networks:
+      - mocks3-network
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:15
+    container_name: mocks3-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: mocks3_metadata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deployments/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - mocks3-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mocks3_metadata"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: mocks3-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mocks3-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 可观测性服务
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.88.0
+    container_name: mocks3-otel-collector
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter
+    volumes:
+      - ./deployments/observability/otel-collector-config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
+    command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
+    depends_on:
+      - elasticsearch
+      - prometheus
+    networks:
+      - mocks3-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: mocks3-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - mocks3-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: mocks3-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployments/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - mocks3-network
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: mocks3-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deployments/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./deployments/observability/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+      - elasticsearch
+    networks:
+      - mocks3-network
+
+  # MockS3 微服务
+  nginx-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: mocks3-gateway
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - consul
+      - metadata-service
+      - storage-service
+      - queue-service
+      - third-party-service
+      - mock-error-service
+    networks:
+      - mocks3-network
+    environment:
+      - CONFIG_PATH=/app/config
+      - ENVIRONMENT=development
+
+  metadata-service:
+    build:
+      context: .
+      dockerfile: services/metadata/Dockerfile
+    container_name: mocks3-metadata
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      - postgres
+      - consul
+      - otel-collector
+    networks:
+      - mocks3-network
+    environment:
+      - CONFIG_PATH=/app/config
+      - ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  storage-service:
+    build:
+      context: .
+      dockerfile: services/storage/Dockerfile
+    container_name: mocks3-storage
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./config:/app/config
+      - storage-data:/app/data
+    depends_on:
+      - consul
+      - metadata-service
+      - third-party-service
+      - otel-collector
+    networks:
+      - mocks3-network
+    environment:
+      - CONFIG_PATH=/app/config
+      - ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  queue-service:
+    build:
+      context: .
+      dockerfile: services/queue/Dockerfile
+    container_name: mocks3-queue
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      - redis
+      - consul
+      - otel-collector
+    networks:
+      - mocks3-network
+    environment:
+      - CONFIG_PATH=/app/config
+      - ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  third-party-service:
+    build:
+      context: .
+      dockerfile: services/third-party/Dockerfile
+    container_name: mocks3-third-party
+    ports:
+      - "8084:8084"
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      - consul
+      - otel-collector
+    networks:
+      - mocks3-network
+    environment:
+      - CONFIG_PATH=/app/config
+      - ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mock-error-service:
+    build:
+      context: .
+      dockerfile: services/mock-error/Dockerfile
+    container_name: mocks3-mock-error
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      - consul
+      - otel-collector
+    networks:
+      - mocks3-network
+    environment:
+      - CONFIG_PATH=/app/config
+      - ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 网络配置
+networks:
+  mocks3-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 数据卷配置
+volumes:
+  consul-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  es-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  storage-data:
+    driver: local

@@ -7,28 +7,28 @@ import (
 
 // Config 元数据服务配置
 type Config struct {
-	Server   ServerConfig   `json:"server"`
-	Database DatabaseConfig `json:"database"`
-	LogLevel string         `json:"log_level"`
+	Server   ServerConfig   `yaml:"server" json:"server"`
+	Database DatabaseConfig `yaml:"database" json:"database"`
+	LogLevel string         `yaml:"log_level" json:"log_level"`
 }
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host        string `json:"host"`
-	Port        int    `json:"port"`
-	Environment string `json:"environment"`
-	Version     string `json:"version"`
+	Host        string `yaml:"host" json:"host"`
+	Port        int    `yaml:"port" json:"port"`
+	Environment string `yaml:"environment" json:"environment"`
+	Version     string `yaml:"version" json:"version"`
 }
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Driver   string `json:"driver"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	SSLMode  string `json:"ssl_mode"`
+	Driver   string `yaml:"driver" json:"driver"`
+	Host     string `yaml:"host" json:"host"`
+	Port     int    `yaml:"port" json:"port"`
+	Username string `yaml:"username" json:"username"`
+	Password string `yaml:"password" json:"password"`
+	Database string `yaml:"database" json:"database"`
+	SSLMode  string `yaml:"ssl_mode" json:"ssl_mode"`
 }
 
 // GetAddress 获取服务器地址
@@ -54,24 +54,33 @@ func (d *DatabaseConfig) GetDSN() string {
 
 // Load 加载配置
 func Load() *Config {
-	return &Config{
+	// 默认配置
+	config := &Config{
 		Server: ServerConfig{
-			Host:        utils.GetEnv("SERVER_HOST", "0.0.0.0"),
-			Port:        utils.GetEnvInt("SERVICE_PORT", 8081),
-			Environment: utils.GetEnv("ENVIRONMENT", "development"),
-			Version:     utils.GetEnv("SERVICE_VERSION", "1.0.0"),
+			Host:        "0.0.0.0",
+			Port:        8081,
+			Environment: "development",
+			Version:     "1.0.0",
 		},
 		Database: DatabaseConfig{
-			Driver:   utils.GetEnv("DB_DRIVER", "postgres"),
-			Host:     utils.GetEnv("DB_HOST", "localhost"),
-			Port:     utils.GetEnvInt("DB_PORT", 5432),
-			Username: utils.GetEnv("DB_USERNAME", "postgres"),
-			Password: utils.GetEnv("DB_PASSWORD", "password"),
-			Database: utils.GetEnv("DB_DATABASE", "mocks3_metadata"),
-			SSLMode:  utils.GetEnv("DB_SSL_MODE", "disable"),
+			Driver:   "postgres",
+			Host:     "localhost",
+			Port:     5432,
+			Username: "postgres",
+			Password: "password",
+			Database: "mocks3_metadata",
+			SSLMode:  "disable",
 		},
-		LogLevel: utils.GetEnv("LOG_LEVEL", "info"),
+		LogLevel: "info",
 	}
+
+	// 尝试从YAML文件加载配置
+	if err := utils.LoadServiceConfig("metadata", config); err != nil {
+		// 如果YAML配置文件不存在，使用默认配置
+		fmt.Printf("Warning: Failed to load YAML config, using defaults: %v\n", err)
+	}
+
+	return config
 }
 
 // Validate 验证配置

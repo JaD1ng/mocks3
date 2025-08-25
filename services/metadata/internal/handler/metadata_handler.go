@@ -6,7 +6,7 @@ import (
 
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"mocks3/shared/utils"
 
 	"github.com/gin-gonic/gin"
@@ -15,11 +15,11 @@ import (
 // MetadataHandler 元数据处理器
 type MetadataHandler struct {
 	service interfaces.MetadataService
-	logger  *log.Logger
+	logger  *observability.Logger
 }
 
 // NewMetadataHandler 创建元数据处理器
-func NewMetadataHandler(service interfaces.MetadataService, logger *log.Logger) *MetadataHandler {
+func NewMetadataHandler(service interfaces.MetadataService, logger *observability.Logger) *MetadataHandler {
 	return &MetadataHandler{
 		service: service,
 		logger:  logger,

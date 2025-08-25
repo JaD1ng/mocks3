@@ -1,0 +1,178 @@
+# MockS3 全局配置文件
+
+# 全局环境配置
+global:
+  environment: "development"
+  region: "us-east-1"
+  cluster_name: "mocks3-cluster"
+  namespace: "default"
+  version: "1.0.0"
+
+# 网络配置
+network:
+  gateway_host: "localhost"
+  gateway_port: 8080
+  internal_network: "mocks3-internal"
+  load_balancer_algorithm: "round_robin"
+  enable_ssl: false
+  ssl_cert_path: "/etc/ssl/certs/mocks3.crt"
+  ssl_key_path: "/etc/ssl/private/mocks3.key"
+
+# 服务发现配置
+service_discovery:
+  type: "consul"
+  consul:
+    address: "localhost:8500"
+    datacenter: "dc1"
+    token: ""
+    enable_acl: false
+    health_check_interval: "10s"
+    deregister_critical_after: "1m"
+
+# 可观测性全局配置
+observability:
+  # OpenTelemetry Collector 配置
+  otlp:
+    endpoint: "localhost:4318"
+    protocol: "http/protobuf"
+    compression: "gzip"
+    timeout: "30s"
+    retry_enabled: true
+    retry_initial_interval: "5s"
+    retry_max_interval: "30s"
+    retry_max_elapsed_time: "5m"
+
+  # 日志配置
+  logging:
+    global_level: "info"
+    format: "json"
+    timestamp_format: "2006-01-02T15:04:05.000Z07:00"
+    enable_caller: true
+    enable_stacktrace: false
+    sampling:
+      initial: 100
+      thereafter: 100
+
+  # 指标配置
+  metrics:
+    enable_runtime_metrics: true
+    collection_interval: "15s"
+    histogram_boundaries: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    
+  # 追踪配置
+  tracing:
+    sampling_ratio: 0.1
+    max_events_per_span: 128
+    max_attributes_per_span: 128
+    max_links_per_span: 128
+
+# 安全配置
+security:
+  # 认证配置
+  authentication:
+    type: "s3_signature"
+    enable_anonymous: true
+    token_expiry: "1h"
+    refresh_token_expiry: "24h"
+
+  # 授权配置
+  authorization:
+    enable_rbac: false
+    default_policy: "allow"
+    admin_users: ["admin"]
+
+  # 限流配置
+  rate_limiting:
+    global_limit: 10000
+    per_ip_limit: 1000
+    window_size: "1m"
+    enable_distributed: true
+
+# 数据存储配置
+storage:
+  # 数据库配置
+  databases:
+    metadata:
+      primary:
+        host: "localhost"
+        port: 5432
+        database: "mocks3_metadata"
+        username: "postgres"
+        password: "password"
+        ssl_mode: "disable"
+      replica:
+        enabled: false
+        host: "localhost"
+        port: 5433
+
+  # Redis 配置
+  redis:
+    primary:
+      host: "localhost"
+      port: 6379
+      password: ""
+      db: 0
+    sentinel:
+      enabled: false
+      master_name: "mocks3"
+      hosts: ["localhost:26379"]
+
+  # 文件存储配置
+  file_storage:
+    type: "local"
+    base_path: "./data"
+    max_file_size: "5GB"
+    enable_compression: true
+    compression_algorithm: "gzip"
+    enable_encryption: false
+
+# 性能配置
+performance:
+  # 连接池配置
+  connection_pools:
+    database:
+      max_open_conns: 25
+      max_idle_conns: 5
+      conn_max_lifetime: "1h"
+    redis:
+      pool_size: 10
+      min_idle_conns: 5
+      max_conn_age: "30m"
+
+  # 缓存配置
+  caching:
+    default_ttl: "5m"
+    max_memory: "256MB"
+    eviction_policy: "allkeys-lru"
+
+  # 超时配置
+  timeouts:
+    request_timeout: "30s"
+    shutdown_timeout: "10s"
+    health_check_timeout: "5s"
+
+# 错误处理配置
+error_handling:
+  # 重试配置
+  retry:
+    max_attempts: 3
+    initial_interval: "1s"
+    max_interval: "30s"
+    multiplier: 2.0
+    randomization_factor: 0.1
+
+  # 熔断器配置
+  circuit_breaker:
+    max_requests: 3
+    interval: "10s"
+    timeout: "60s"
+    failure_threshold: 5
+
+# 开发配置
+development:
+  enable_debug_endpoints: true
+  enable_pprof: true
+  mock_external_services: true
+  disable_auth: true
+  log_request_body: false
+  log_response_body: false

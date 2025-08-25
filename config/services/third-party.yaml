@@ -1,0 +1,109 @@
+# MockS3 Third-Party Service 配置文件
+
+# 服务基本配置
+server:
+  host: "0.0.0.0"
+  port: 8084
+  environment: "development"
+  version: "1.0.0"
+
+# 缓存配置
+cache:
+  ttl: 3600
+  max_size: 1024
+  strategy: "lru"
+  enabled: true
+  cleanup_interval: "1h"
+  compression: false
+
+# 数据源配置
+data_sources:
+  - name: "backup-s3"
+    type: "s3"
+    endpoint: "https://s3.amazonaws.com"
+    access_key: "${AWS_ACCESS_KEY_ID}"
+    secret_key: "${AWS_SECRET_ACCESS_KEY}"
+    region: "us-east-1"
+    bucket_name: "backup-bucket"
+    timeout: 30
+    enabled: true
+    priority: 1
+    max_retries: 3
+    retry_interval: "2s"
+    extra_config:
+      force_path_style: "false"
+      disable_ssl: "false"
+  
+  - name: "backup-http"
+    type: "http"
+    endpoint: "https://backup.example.com/api"
+    timeout: 30
+    enabled: false
+    priority: 2
+    max_retries: 2
+    retry_interval: "5s"
+    headers:
+      Authorization: "Bearer ${BACKUP_API_TOKEN}"
+      Content-Type: "application/json"
+  
+  - name: "backup-ftp"
+    type: "ftp"
+    endpoint: "ftp://backup.example.com"
+    username: "${FTP_USERNAME}"
+    password: "${FTP_PASSWORD}"
+    timeout: 60
+    enabled: false
+    priority: 3
+    max_retries: 1
+    extra_config:
+      passive_mode: "true"
+      use_ssl: "true"
+
+# 可观测性配置
+observability:
+  service_name: "third-party-service"
+  service_version: "1.0.0"
+  environment: "development"
+  otlp_endpoint: "localhost:4318"
+  log_level: "info"
+  sampling_ratio: 1.0
+  export_interval: "30s"
+
+# Consul 配置
+consul:
+  address: "localhost:8500"
+  enabled: true
+  register: true
+  health_check_interval: "10s"
+  deregister_critical_after: "1m"
+
+# 健康检查配置
+health:
+  check_interval: "30s"
+  timeout: "5s"
+  endpoint: "/health"
+
+# 性能配置
+performance:
+  max_connections: 500
+  read_timeout: "60s"
+  write_timeout: "60s"
+  idle_timeout: "120s"
+  request_size_limit: "100MB"
+
+# 业务配置
+business:
+  max_concurrent_requests: 10
+  circuit_breaker:
+    enabled: true
+    max_requests: 3
+    interval: "10s"
+    timeout: "60s"
+  fallback:
+    enabled: true
+    cache_fallback: true
+    error_threshold: 5
+  rate_limit:
+    enabled: true
+    requests_per_second: 100
+    burst_size: 200

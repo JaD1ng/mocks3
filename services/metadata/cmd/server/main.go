@@ -9,9 +9,7 @@ import (
 	"mocks3/services/metadata/internal/service"
 	"mocks3/shared/client"
 	"mocks3/shared/middleware"
-	logger "mocks3/shared/observability/log"
-	"mocks3/shared/observability/metric"
-	"mocks3/shared/observability/trace"
+	"mocks3/shared/observability"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,22 +23,22 @@ func main() {
 	// 加载配置
 	cfg := config.Load()
 
-	// 初始化日志器
-	logger := logger.NewLogger("metadata-service", logger.LogLevel(cfg.LogLevel))
-
-	// 初始化追踪器
-	tracerProvider, err := trace.NewDefaultTracerProvider("metadata-service")
-	if err != nil {
-		log.Fatalf("Failed to initialize tracer: %v", err)
+	// 初始化统一可观测性
+	obsConfig := &observability.Config{
+		ServiceName:    "metadata-service",
+		ServiceVersion: "1.0.0",
+		Environment:    cfg.Server.Environment,
+		OTLPEndpoint:   "http://localhost:4318",
+		LogLevel:       cfg.LogLevel,
 	}
-	defer tracerProvider.Shutdown(context.Background())
 
-	// 初始化指标收集器
-	metricCollector, err := metric.NewDefaultCollector("metadata-service")
+	obs, err := observability.New(context.Background(), obsConfig)
 	if err != nil {
-		log.Fatalf("Failed to initialize metrics: %v", err)
+		log.Fatalf("Failed to initialize observability: %v", err)
 	}
-	defer metricCollector.Shutdown(context.Background())
+	defer obs.Shutdown(context.Background())
+
+	logger := obs.Logger()
 
 	// 初始化Consul管理器
 	consulManager, err := middleware.NewDefaultConsulManager("metadata-service")
@@ -59,7 +57,10 @@ func main() {
 	metadataRepo := repository.NewMetadataRepository(db)
 
 	// 初始化队列客户端
-	_ = client.NewQueueClient("http://localhost:8083", 30*time.Second)
+	queueClient := client.NewQueueClient("http://localhost:8083", 30*time.Second)
+	
+	// TODO: 在未来版本中集成队列功能，当前仅进行连接测试
+	_ = queueClient
 
 	// 初始化服务
 	metadataService := service.NewMetadataService(metadataRepo, logger)
@@ -96,11 +97,8 @@ func main() {
 	// 添加中间件
 	router.Use(gin.Logger())
 	router.Use(middleware.GinRecoveryMiddleware(middleware.DefaultRecoveryConfig()))
-	router.Use(trace.GinMiddleware("metadata-service"))
-
-	// 添加指标中间件
-	metricsMiddleware := metric.NewDefaultMiddlewareConfig(metricCollector)
-	router.Use(metricsMiddleware.GinMiddleware())
+	// 使用统一可观测性中间件
+	router.Use(obs.GinMiddleware())
 
 	// 设置路由
 	metadataHandler.RegisterRoutes(router)
@@ -126,7 +124,8 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		logger.Info("Starting metadata service", "address", cfg.Server.GetAddress())
+		logger.Info(context.Background(), "Starting metadata service", 
+			observability.String("address", cfg.Server.GetAddress()))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -137,7 +136,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down metadata service...")
+	logger.Info(context.Background(), "Shutting down metadata service...")
 
 	// 优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -147,5 +146,5 @@ func main() {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	logger.Info("Metadata service stopped")
+	logger.Info(context.Background(), "Metadata service stopped")
 }

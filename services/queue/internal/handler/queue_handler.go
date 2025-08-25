@@ -6,7 +6,7 @@ import (
 
 	"mocks3/services/queue/internal/service"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +14,11 @@ import (
 // QueueHandler 队列处理器
 type QueueHandler struct {
 	service *service.QueueService
-	logger  *log.Logger
+	logger  *observability.Logger
 }
 
 // NewQueueHandler 创建队列处理器
-func NewQueueHandler(service *service.QueueService, logger *log.Logger) *QueueHandler {
+func NewQueueHandler(service *service.QueueService, logger *observability.Logger) *QueueHandler {
 	return &QueueHandler{
 		service: service,
 		logger:  logger,

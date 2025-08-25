@@ -7,7 +7,7 @@ import (
 	"mocks3/services/mock-error/internal/repository"
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,7 +19,7 @@ type ErrorInjectorService struct {
 	ruleRepo   *repository.RuleRepository
 	statsRepo  *repository.StatsRepository
 	ruleEngine interfaces.ErrorRuleEngine
-	logger     *log.Logger
+	logger     *observability.Logger
 }
 
 // NewErrorInjectorService 创建错误注入服务
@@ -28,7 +28,7 @@ func NewErrorInjectorService(
 	ruleRepo *repository.RuleRepository,
 	statsRepo *repository.StatsRepository,
 	ruleEngine interfaces.ErrorRuleEngine,
-	logger *log.Logger,
+	logger *observability.Logger,
 ) *ErrorInjectorService {
 	return &ErrorInjectorService{
 		config:     cfg,
@@ -41,11 +41,14 @@ func NewErrorInjectorService(
 
 // AddErrorRule 添加错误规则
 func (s *ErrorInjectorService) AddErrorRule(ctx context.Context, rule *models.ErrorRule) error {
-	s.logger.InfoContext(ctx, "Adding error rule", "rule_name", rule.Name, "service", rule.Service)
+	s.logger.Info(ctx, "Adding error rule", 
+		observability.String("rule_name", rule.Name), 
+		observability.String("service", rule.Service))
 
 	// 验证规则
 	if err := s.validateRule(rule); err != nil {
-		s.logger.WarnContext(ctx, "Invalid rule", "error", err)
+		s.logger.Warn(ctx, "Invalid rule", 
+			observability.String("error", err.Error()))
 		return fmt.Errorf("invalid rule: %w", err)
 	}
 
@@ -66,13 +69,15 @@ func (s *ErrorInjectorService) AddErrorRule(ctx context.Context, rule *models.Er
 
 	// 添加到仓库
 	if err := s.ruleRepo.Add(ctx, rule); err != nil {
-		s.logger.ErrorContext(ctx, "Failed to add rule to repository", "error", err)
+		s.logger.Error(ctx, "Failed to add rule to repository", 
+			observability.String("error", err.Error()))
 		return fmt.Errorf("failed to add rule: %w", err)
 	}
 
 	// 添加到规则引擎
 	if err := s.ruleEngine.AddRule(rule); err != nil {
-		s.logger.ErrorContext(ctx, "Failed to add rule to engine", "error", err)
+		s.logger.Error(ctx, "Failed to add rule to engine", 
+			observability.String("error", err.Error()))
 		// 回滚仓库操作
 		s.ruleRepo.Delete(ctx, rule.ID)
 		return fmt.Errorf("failed to add rule to engine: %w", err)
@@ -81,35 +86,45 @@ func (s *ErrorInjectorService) AddErrorRule(ctx context.Context, rule *models.Er
 	// 更新统计
 	s.updateRuleCounts(ctx)
 
-	s.logger.InfoContext(ctx, "Error rule added successfully", "rule_id", rule.ID, "rule_name", rule.Name)
+	s.logger.Info(ctx, "Error rule added successfully", 
+		observability.String("rule_id", rule.ID), 
+		observability.String("rule_name", rule.Name))
 	return nil
 }
 
 // RemoveErrorRule 移除错误规则
 func (s *ErrorInjectorService) RemoveErrorRule(ctx context.Context, ruleID string) error {
-	s.logger.InfoContext(ctx, "Removing error rule", "rule_id", ruleID)
+	s.logger.Info(ctx, "Removing error rule", 
+		observability.String("rule_id", ruleID))
 
 	// 从仓库删除
 	if err := s.ruleRepo.Delete(ctx, ruleID); err != nil {
-		s.logger.WarnContext(ctx, "Failed to remove rule from repository", "rule_id", ruleID, "error", err)
+		s.logger.Warn(ctx, "Failed to remove rule from repository", 
+			observability.String("rule_id", ruleID), 
+			observability.String("error", err.Error()))
 		return fmt.Errorf("failed to remove rule: %w", err)
 	}
 
 	// 从规则引擎删除
 	if err := s.ruleEngine.RemoveRule(ruleID); err != nil {
-		s.logger.WarnContext(ctx, "Failed to remove rule from engine", "rule_id", ruleID, "error", err)
+		s.logger.Warn(ctx, "Failed to remove rule from engine", 
+			observability.String("rule_id", ruleID), 
+			observability.String("error", err.Error()))
 	}
 
 	// 更新统计
 	s.updateRuleCounts(ctx)
 
-	s.logger.InfoContext(ctx, "Error rule removed successfully", "rule_id", ruleID)
+	s.logger.Info(ctx, "Error rule removed successfully", 
+		observability.String("rule_id", ruleID))
 	return nil
 }
 
 // UpdateErrorRule 更新错误规则
 func (s *ErrorInjectorService) UpdateErrorRule(ctx context.Context, rule *models.ErrorRule) error {
-	s.logger.InfoContext(ctx, "Updating error rule", "rule_id", rule.ID, "rule_name", rule.Name)
+	s.logger.Info(ctx, "Updating error rule", 
+		observability.String("rule_id", rule.ID), 
+		observability.String("rule_name", rule.Name))
 
 	// 验证规则
 	if err := s.validateRule(rule); err != nil {
@@ -118,27 +133,32 @@ func (s *ErrorInjectorService) UpdateErrorRule(ctx context.Context, rule *models
 
 	// 更新仓库
 	if err := s.ruleRepo.Update(ctx, rule); err != nil {
-		s.logger.ErrorContext(ctx, "Failed to update rule in repository", "error", err)
+		s.logger.Error(ctx, "Failed to update rule in repository", 
+			observability.String("error", err.Error()))
 		return fmt.Errorf("failed to update rule: %w", err)
 	}
 
 	// 更新规则引擎
 	if err := s.ruleEngine.UpdateRule(rule); err != nil {
-		s.logger.ErrorContext(ctx, "Failed to update rule in engine", "error", err)
+		s.logger.Error(ctx, "Failed to update rule in engine", 
+			observability.String("error", err.Error()))
 		return fmt.Errorf("failed to update rule in engine: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "Error rule updated successfully", "rule_id", rule.ID)
+	s.logger.Info(ctx, "Error rule updated successfully", 
+		observability.String("rule_id", rule.ID))
 	return nil
 }
 
 // GetErrorRule 获取错误规则
 func (s *ErrorInjectorService) GetErrorRule(ctx context.Context, ruleID string) (*models.ErrorRule, error) {
-	s.logger.DebugContext(ctx, "Getting error rule", "rule_id", ruleID)
+	s.logger.Debug(ctx, "Getting error rule", 
+		observability.String("rule_id", ruleID))
 
 	rule, err := s.ruleRepo.Get(ctx, ruleID)
 	if err != nil {
-		s.logger.WarnContext(ctx, "Rule not found", "rule_id", ruleID)
+		s.logger.Warn(ctx, "Rule not found", 
+			observability.String("rule_id", ruleID))
 		return nil, fmt.Errorf("rule not found: %w", err)
 	}
 
@@ -147,15 +167,17 @@ func (s *ErrorInjectorService) GetErrorRule(ctx context.Context, ruleID string) 
 
 // ListErrorRules 列出错误规则
 func (s *ErrorInjectorService) ListErrorRules(ctx context.Context) ([]*models.ErrorRule, error) {
-	s.logger.DebugContext(ctx, "Listing error rules")
+	s.logger.Debug(ctx, "Listing error rules")
 
 	rules, err := s.ruleRepo.List(ctx)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "Failed to list rules", "error", err)
+		s.logger.Error(ctx, "Failed to list rules", 
+			observability.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to list rules: %w", err)
 	}
 
-	s.logger.DebugContext(ctx, "Listed error rules", "count", len(rules))
+	s.logger.Debug(ctx, "Listed error rules", 
+		observability.Int("count", len(rules)))
 	return rules, nil
 }
 
@@ -173,10 +195,10 @@ func (s *ErrorInjectorService) ShouldInjectError(ctx context.Context, service, o
 	action, shouldInject := s.ruleEngine.EvaluateRules(ctx, service, operation, metadata)
 
 	if shouldInject {
-		s.logger.DebugContext(ctx, "Error injection triggered",
-			"service", service,
-			"operation", operation,
-			"action_type", action.Type)
+		s.logger.Debug(ctx, "Error injection triggered",
+			observability.String("service", service),
+			observability.String("operation", operation),
+			observability.String("action_type", action.Type))
 
 		// 记录事件
 		event := &models.ErrorEvent{
@@ -191,7 +213,8 @@ func (s *ErrorInjectorService) ShouldInjectError(ctx context.Context, service, o
 		// 异步记录统计
 		go func() {
 			if err := s.statsRepo.RecordEvent(context.Background(), event); err != nil {
-				s.logger.Warn("Failed to record error event", "error", err)
+				s.logger.Warn(context.Background(), "Failed to record error event", 
+				observability.String("error", err.Error()))
 			}
 		}()
 	}
@@ -201,7 +224,8 @@ func (s *ErrorInjectorService) ShouldInjectError(ctx context.Context, service, o
 
 // InjectError 执行错误注入
 func (s *ErrorInjectorService) InjectError(ctx context.Context, action *models.ErrorAction) error {
-	s.logger.DebugContext(ctx, "Injecting error", "action_type", action.Type)
+	s.logger.Debug(ctx, "Injecting error", 
+		observability.String("action_type", action.Type))
 
 	switch action.Type {
 	case models.ErrorActionTypeDelay:
@@ -222,14 +246,15 @@ func (s *ErrorInjectorService) InjectError(ctx context.Context, action *models.E
 
 // GetErrorStats 获取错误统计
 func (s *ErrorInjectorService) GetErrorStats(ctx context.Context) (*models.ErrorStats, error) {
-	s.logger.DebugContext(ctx, "Getting error statistics")
+	s.logger.Debug(ctx, "Getting error statistics")
 
 	// 更新规则计数
 	s.updateRuleCounts(ctx)
 
 	stats, err := s.statsRepo.GetStats(ctx)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "Failed to get statistics", "error", err)
+		s.logger.Error(ctx, "Failed to get statistics", 
+			observability.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get statistics: %w", err)
 	}
 
@@ -238,20 +263,21 @@ func (s *ErrorInjectorService) GetErrorStats(ctx context.Context) (*models.Error
 
 // ResetErrorStats 重置错误统计
 func (s *ErrorInjectorService) ResetErrorStats(ctx context.Context) error {
-	s.logger.InfoContext(ctx, "Resetting error statistics")
+	s.logger.Info(ctx, "Resetting error statistics")
 
 	if err := s.statsRepo.ResetStats(ctx); err != nil {
-		s.logger.ErrorContext(ctx, "Failed to reset statistics", "error", err)
+		s.logger.Error(ctx, "Failed to reset statistics", 
+			observability.String("error", err.Error()))
 		return fmt.Errorf("failed to reset statistics: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "Error statistics reset successfully")
+	s.logger.Info(ctx, "Error statistics reset successfully")
 	return nil
 }
 
 // HealthCheck 健康检查
 func (s *ErrorInjectorService) HealthCheck(ctx context.Context) error {
-	s.logger.DebugContext(ctx, "Performing health check")
+	s.logger.Debug(ctx, "Performing health check")
 
 	// 检查规则数量
 	count, err := s.ruleRepo.Count(ctx)
@@ -259,7 +285,8 @@ func (s *ErrorInjectorService) HealthCheck(ctx context.Context) error {
 		return fmt.Errorf("failed to count rules: %w", err)
 	}
 
-	s.logger.DebugContext(ctx, "Health check passed", "rule_count", count)
+	s.logger.Debug(ctx, "Health check passed", 
+		observability.Int("rule_count", count))
 	return nil
 }
 
@@ -331,7 +358,8 @@ func (s *ErrorInjectorService) updateRuleCounts(ctx context.Context) {
 
 	go func() {
 		if err := s.statsRepo.UpdateRuleCounts(context.Background(), totalRules, activeRules); err != nil {
-			s.logger.Warn("Failed to update rule counts", "error", err)
+			s.logger.Warn(context.Background(), "Failed to update rule counts", 
+				observability.String("error", err.Error()))
 		}
 	}()
 }
@@ -342,7 +370,8 @@ func (s *ErrorInjectorService) injectDelay(ctx context.Context, action *models.E
 		return nil
 	}
 
-	s.logger.DebugContext(ctx, "Injecting delay", "duration", *action.Delay)
+	s.logger.Debug(ctx, "Injecting delay", 
+		observability.Any("duration", *action.Delay))
 
 	select {
 	case <-time.After(*action.Delay):
@@ -358,7 +387,7 @@ func (s *ErrorInjectorService) injectNetworkError(ctx context.Context, action *m
 		return nil
 	}
 
-	s.logger.DebugContext(ctx, "Injecting network error")
+	s.logger.Debug(ctx, "Injecting network error")
 	return fmt.Errorf("network error injected: %s", action.Message)
 }
 
@@ -368,7 +397,7 @@ func (s *ErrorInjectorService) injectDatabaseError(ctx context.Context, action *
 		return nil
 	}
 
-	s.logger.DebugContext(ctx, "Injecting database error")
+	s.logger.Debug(ctx, "Injecting database error")
 	return fmt.Errorf("database error injected: %s", action.Message)
 }
 
@@ -378,7 +407,7 @@ func (s *ErrorInjectorService) injectStorageError(ctx context.Context, action *m
 		return nil
 	}
 
-	s.logger.DebugContext(ctx, "Injecting storage error")
+	s.logger.Debug(ctx, "Injecting storage error")
 	return fmt.Errorf("storage error injected: %s", action.Message)
 }
 

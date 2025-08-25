@@ -8,7 +8,7 @@ import (
 
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"mocks3/shared/utils"
 
 	"github.com/gin-gonic/gin"
@@ -18,11 +18,11 @@ import (
 // StorageHandler 存储处理器
 type StorageHandler struct {
 	service interfaces.StorageService
-	logger  *log.Logger
+	logger  *observability.Logger
 }
 
 // NewStorageHandler 创建存储处理器
-func NewStorageHandler(service interfaces.StorageService, logger *log.Logger) *StorageHandler {
+func NewStorageHandler(service interfaces.StorageService, logger *observability.Logger) *StorageHandler {
 	return &StorageHandler{
 		service: service,
 		logger:  logger,

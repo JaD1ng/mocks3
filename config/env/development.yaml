@@ -1,0 +1,53 @@
+# MockS3 开发环境配置
+
+# 环境信息
+environment:
+  name: "development"
+  description: "本地开发环境"
+
+# 服务端口配置
+services:
+  gateway: 8080
+  metadata: 8081
+  storage: 8082
+  queue: 8083
+  third_party: 8084
+  mock_error: 8085
+
+# 数据库配置
+database:
+  host: "localhost"
+  port: 5432
+  database: "mocks3_dev"
+  username: "postgres"
+  password: "password"
+  ssl_mode: "disable"
+
+# Redis 配置
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+
+# Consul 配置
+consul:
+  host: "localhost"
+  port: 8500
+  datacenter: "dc1"
+
+# 可观测性配置
+observability:
+  otlp_endpoint: "localhost:4318"
+  log_level: "debug"
+  enable_debug: true
+  sampling_ratio: 1.0
+
+# 开发特定配置
+development:
+  enable_hot_reload: true
+  enable_debug_endpoints: true
+  disable_auth: true
+  mock_external_services: true
+  cors_enabled: true
+  cors_origins: ["*"]

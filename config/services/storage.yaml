@@ -1,0 +1,91 @@
+# MockS3 Storage Service 配置文件
+
+# 服务基本配置
+server:
+  host: "0.0.0.0"
+  port: 8082
+  environment: "development"
+  version: "1.0.0"
+
+# 存储配置
+storage:
+  data_dir: "./data/storage"
+  nodes:
+    - id: "stg1"
+      path: "./data/storage/stg1"
+      capacity: "10GB"
+      enabled: true
+    - id: "stg2"
+      path: "./data/storage/stg2"
+      capacity: "10GB"
+      enabled: true
+    - id: "stg3"
+      path: "./data/storage/stg3"
+      capacity: "10GB"
+      enabled: true
+  replication_factor: 2
+  enable_compression: true
+  compression_algorithm: "gzip"
+
+# 依赖服务配置
+services:
+  metadata:
+    service_url: "http://localhost:8081"
+    timeout: "30s"
+    max_retries: 3
+    retry_interval: "1s"
+  third_party:
+    service_url: "http://localhost:8084"
+    timeout: "30s"
+    max_retries: 2
+    retry_interval: "2s"
+    enabled: true
+
+# 可观测性配置
+observability:
+  service_name: "storage-service"
+  service_version: "1.0.0"
+  environment: "development"
+  otlp_endpoint: "localhost:4318"
+  log_level: "info"
+  sampling_ratio: 1.0
+  export_interval: "30s"
+
+# Consul 配置
+consul:
+  address: "localhost:8500"
+  enabled: true
+  register: true
+  health_check_interval: "10s"
+  deregister_critical_after: "1m"
+
+# 健康检查配置
+health:
+  check_interval: "30s"
+  timeout: "5s"
+  endpoint: "/health"
+
+# 性能配置
+performance:
+  max_connections: 1000
+  read_timeout: "30s"
+  write_timeout: "60s"
+  idle_timeout: "60s"
+  request_size_limit: "100MB"
+  max_file_size: "5GB"
+
+# 缓存配置
+cache:
+  enabled: true
+  ttl: 600
+  max_size: 500
+  cleanup_interval: "10m"
+
+# 业务配置
+business:
+  enable_multipart_upload: true
+  multipart_threshold: "100MB"
+  max_parts: 10000
+  part_size: "5MB"
+  enable_deduplication: false
+  checksum_algorithm: "md5"

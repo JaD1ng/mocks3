@@ -7,7 +7,7 @@ import (
 
 	"mocks3/services/mock-error/internal/service"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,11 +15,11 @@ import (
 // ErrorHandler 错误注入处理器
 type ErrorHandler struct {
 	service *service.ErrorInjectorService
-	logger  *log.Logger
+	logger  *observability.Logger
 }
 
 // NewErrorHandler 创建错误注入处理器
-func NewErrorHandler(service *service.ErrorInjectorService, logger *log.Logger) *ErrorHandler {
+func NewErrorHandler(service *service.ErrorInjectorService, logger *observability.Logger) *ErrorHandler {
 	return &ErrorHandler{
 		service: service,
 		logger:  logger,

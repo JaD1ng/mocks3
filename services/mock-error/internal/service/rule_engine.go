@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"net"
 	"regexp"
 	"strconv"
@@ -17,12 +17,12 @@ import (
 // RuleEngine 错误规则引擎实现
 type RuleEngine struct {
 	rules  map[string]*models.ErrorRule
-	logger *log.Logger
+	logger *observability.Logger
 	rand   *rand.Rand
 }
 
 // NewRuleEngine 创建错误规则引擎
-func NewRuleEngine(logger *log.Logger) *RuleEngine {
+func NewRuleEngine(logger *observability.Logger) *RuleEngine {
 	return &RuleEngine{
 		rules:  make(map[string]*models.ErrorRule),
 		logger: logger,
@@ -43,11 +43,11 @@ func (e *RuleEngine) EvaluateRules(ctx context.Context, service, operation strin
 
 		// 评估条件
 		if e.evaluateConditions(rule.Conditions, metadata) {
-			e.logger.DebugContext(ctx, "Rule matched",
-				"rule_id", rule.ID,
-				"rule_name", rule.Name,
-				"service", service,
-				"operation", operation)
+			e.logger.Debug(ctx, "Rule matched",
+				observability.String("rule_id", rule.ID),
+				observability.String("rule_name", rule.Name),
+				observability.String("service", service),
+				observability.String("operation", operation))
 
 			return &rule.Action, true
 		}
@@ -63,7 +63,9 @@ func (e *RuleEngine) AddRule(rule *models.ErrorRule) error {
 	}
 
 	e.rules[rule.ID] = rule
-	e.logger.Debug("Rule added", "rule_id", rule.ID, "rule_name", rule.Name)
+	e.logger.Debug(context.Background(), "Rule added", 
+		observability.String("rule_id", rule.ID), 
+		observability.String("rule_name", rule.Name))
 	return nil
 }
 
@@ -74,7 +76,8 @@ func (e *RuleEngine) RemoveRule(ruleID string) error {
 	}
 
 	delete(e.rules, ruleID)
-	e.logger.Debug("Rule removed", "rule_id", ruleID)
+	e.logger.Debug(context.Background(), "Rule removed", 
+		observability.String("rule_id", ruleID))
 	return nil
 }
 
@@ -85,7 +88,9 @@ func (e *RuleEngine) UpdateRule(rule *models.ErrorRule) error {
 	}
 
 	e.rules[rule.ID] = rule
-	e.logger.Debug("Rule updated", "rule_id", rule.ID, "rule_name", rule.Name)
+	e.logger.Debug(context.Background(), "Rule updated", 
+		observability.String("rule_id", rule.ID), 
+		observability.String("rule_name", rule.Name))
 	return nil
 }
 
@@ -260,7 +265,8 @@ func (e *RuleEngine) evaluateCondition(condition models.ErrorCondition, metadata
 	case models.ErrorConditionTypeCount:
 		return e.evaluateCountCondition(condition, metadata)
 	default:
-		e.logger.Warn("Unknown condition type", "type", condition.Type)
+		e.logger.Warn(context.Background(), "Unknown condition type", 
+			observability.String("type", condition.Type))
 		return false
 	}
 }
@@ -440,7 +446,8 @@ func (e *RuleEngine) compareValues(actual, expected, operator string) bool {
 	case "lte":
 		return actual <= expected
 	default:
-		e.logger.Warn("Unknown operator", "operator", operator)
+		e.logger.Warn(context.Background(), "Unknown operator", 
+			observability.String("operator", operator))
 		return false
 	}
 }

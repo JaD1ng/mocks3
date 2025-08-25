@@ -1,84 +1,41 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"mocks3/shared/models"
 	"net/http"
-	"net/url"
 	"time"
 )
 
 // QueueClient 队列服务客户端
 type QueueClient struct {
-	baseURL    string
-	httpClient *http.Client
-	timeout    time.Duration
+	*BaseHTTPClient
 }
 
 // NewQueueClient 创建队列服务客户端
 func NewQueueClient(baseURL string, timeout time.Duration) *QueueClient {
 	return &QueueClient{
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: timeout,
-		},
-		timeout: timeout,
+		BaseHTTPClient: NewBaseHTTPClient(baseURL, timeout),
 	}
 }
 
 // EnqueueTask 入队任务
 func (c *QueueClient) EnqueueTask(ctx context.Context, task *models.Task) error {
-	reqURL := fmt.Sprintf("%s/tasks", c.baseURL)
-
-	body, err := json.Marshal(task)
-	if err != nil {
-		return fmt.Errorf("marshal task: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	return c.PostExpectStatus(ctx, "/tasks", task, http.StatusCreated)
 }
 
 // DequeueTask 出队任务
 func (c *QueueClient) DequeueTask(ctx context.Context, queueName string) (*models.Task, error) {
-	reqURL := fmt.Sprintf("%s/tasks/dequeue", c.baseURL)
+	queryParams := map[string]string{"queue": queueName}
 
-	u, err := url.Parse(reqURL)
+	resp, err := c.DoRequest(ctx, RequestOptions{
+		Method:      "GET",
+		Path:        "/tasks/dequeue",
+		QueryParams: queryParams,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("parse url: %w", err)
-	}
-
-	q := u.Query()
-	q.Set("queue", queueName)
-	u.RawQuery = q.Encode()
-
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -91,8 +48,12 @@ func (c *QueueClient) DequeueTask(ctx context.Context, queueName string) (*model
 	}
 
 	var task models.Task
-	if err := json.NewDecoder(resp.Body).Decode(&task); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	if err := c.DoRequestWithJSON(ctx, RequestOptions{
+		Method:      "GET",
+		Path:        "/tasks/dequeue",
+		QueryParams: queryParams,
+	}, &task); err != nil {
+		return nil, err
 	}
 
 	return &task, nil
@@ -100,241 +61,61 @@ func (c *QueueClient) DequeueTask(ctx context.Context, queueName string) (*model
 
 // CreateQueue 创建队列
 func (c *QueueClient) CreateQueue(ctx context.Context, config *models.QueueConfig) error {
-	reqURL := fmt.Sprintf("%s/queues", c.baseURL)
-
-	body, err := json.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	return c.PostExpectStatus(ctx, "/queues", config, http.StatusCreated)
 }
 
 // DeleteQueue 删除队列
 func (c *QueueClient) DeleteQueue(ctx context.Context, queueName string) error {
-	reqURL := fmt.Sprintf("%s/queues/%s", c.baseURL, url.PathEscape(queueName))
-
-	httpReq, err := http.NewRequestWithContext(ctx, "DELETE", reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	path := fmt.Sprintf("/queues/%s", PathEscape(queueName))
+	return c.Delete(ctx, path)
 }
 
 // ListQueues 列出队列
 func (c *QueueClient) ListQueues(ctx context.Context) ([]string, error) {
-	reqURL := fmt.Sprintf("%s/queues", c.baseURL)
-
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
 	var queues []string
-	if err := json.NewDecoder(resp.Body).Decode(&queues); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return queues, nil
+	err := c.Get(ctx, "/queues", nil, &queues)
+	return queues, err
 }
 
 // GetQueueStats 获取队列统计
 func (c *QueueClient) GetQueueStats(ctx context.Context, queueName string) (*models.QueueStats, error) {
-	reqURL := fmt.Sprintf("%s/queues/%s/stats", c.baseURL, url.PathEscape(queueName))
-
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
+	path := fmt.Sprintf("/queues/%s/stats", PathEscape(queueName))
 	var stats models.QueueStats
-	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return &stats, nil
+	err := c.Get(ctx, path, nil, &stats)
+	return &stats, err
 }
 
 // RegisterWorker 注册工作节点
 func (c *QueueClient) RegisterWorker(ctx context.Context, worker *models.Worker) error {
-	reqURL := fmt.Sprintf("%s/workers", c.baseURL)
-
-	body, err := json.Marshal(worker)
-	if err != nil {
-		return fmt.Errorf("marshal worker: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	return c.PostExpectStatus(ctx, "/workers", worker, http.StatusCreated)
 }
 
 // UnregisterWorker 注销工作节点
 func (c *QueueClient) UnregisterWorker(ctx context.Context, workerID string) error {
-	reqURL := fmt.Sprintf("%s/workers/%s", c.baseURL, url.PathEscape(workerID))
-
-	httpReq, err := http.NewRequestWithContext(ctx, "DELETE", reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	path := fmt.Sprintf("/workers/%s", PathEscape(workerID))
+	return c.Delete(ctx, path)
 }
 
 // ListWorkers 列出工作节点
 func (c *QueueClient) ListWorkers(ctx context.Context) ([]*models.Worker, error) {
-	reqURL := fmt.Sprintf("%s/workers", c.baseURL)
-
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
 	var workers []*models.Worker
-	if err := json.NewDecoder(resp.Body).Decode(&workers); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return workers, nil
+	err := c.Get(ctx, "/workers", nil, &workers)
+	return workers, err
 }
 
 // UpdateTaskStatus 更新任务状态
 func (c *QueueClient) UpdateTaskStatus(ctx context.Context, taskID string, status models.TaskStatus, error string) error {
-	reqURL := fmt.Sprintf("%s/tasks/%s/status", c.baseURL, url.PathEscape(taskID))
-
-	req := map[string]interface{}{
+	path := fmt.Sprintf("/tasks/%s/status", PathEscape(taskID))
+	req := map[string]any{
 		"status": status,
 	}
 	if error != "" {
 		req["error"] = error
 	}
-
-	body, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "PUT", reqURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	return c.PutExpectStatus(ctx, path, req, http.StatusOK)
 }
 
 // HealthCheck 健康检查
 func (c *QueueClient) HealthCheck(ctx context.Context) error {
-	reqURL := fmt.Sprintf("%s/health", c.baseURL)
-
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unhealthy status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	return c.BaseHTTPClient.HealthCheck(ctx)
 }

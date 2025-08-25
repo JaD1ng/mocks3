@@ -7,44 +7,44 @@ import (
 
 // Config 存储服务配置
 type Config struct {
-	Server     ServerConfig     `json:"server"`
-	Storage    StorageConfig    `json:"storage"`
-	Metadata   MetadataConfig   `json:"metadata"`
-	ThirdParty ThirdPartyConfig `json:"third_party"`
-	LogLevel   string           `json:"log_level"`
+	Server     ServerConfig     `yaml:"server" json:"server"`
+	Storage    StorageConfig    `yaml:"storage" json:"storage"`
+	Metadata   MetadataConfig   `yaml:"metadata" json:"metadata"`
+	ThirdParty ThirdPartyConfig `yaml:"third_party" json:"third_party"`
+	LogLevel   string           `yaml:"log_level" json:"log_level"`
 }
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host        string `json:"host"`
-	Port        int    `json:"port"`
-	Environment string `json:"environment"`
-	Version     string `json:"version"`
+	Host        string `yaml:"host" json:"host"`
+	Port        int    `yaml:"port" json:"port"`
+	Environment string `yaml:"environment" json:"environment"`
+	Version     string `yaml:"version" json:"version"`
 }
 
 // StorageConfig 存储配置
 type StorageConfig struct {
-	DataDir string       `json:"data_dir"`
-	Nodes   []NodeConfig `json:"nodes"`
+	DataDir string       `yaml:"data_dir" json:"data_dir"`
+	Nodes   []NodeConfig `yaml:"nodes" json:"nodes"`
 }
 
 // NodeConfig 存储节点配置
 type NodeConfig struct {
-	ID   string `json:"id"`
-	Path string `json:"path"`
+	ID   string `yaml:"id" json:"id"`
+	Path string `yaml:"path" json:"path"`
 }
 
 // MetadataConfig 元数据服务配置
 type MetadataConfig struct {
-	ServiceURL string `json:"service_url"`
-	Timeout    string `json:"timeout"`
+	ServiceURL string `yaml:"service_url" json:"service_url"`
+	Timeout    string `yaml:"timeout" json:"timeout"`
 }
 
 // ThirdPartyConfig 第三方服务配置
 type ThirdPartyConfig struct {
-	ServiceURL string `json:"service_url"`
-	Timeout    string `json:"timeout"`
-	Enabled    bool   `json:"enabled"`
+	ServiceURL string `yaml:"service_url" json:"service_url"`
+	Timeout    string `yaml:"timeout" json:"timeout"`
+	Enabled    bool   `yaml:"enabled" json:"enabled"`
 }
 
 // GetAddress 获取服务器地址
@@ -54,41 +54,50 @@ func (s *ServerConfig) GetAddress() string {
 
 // Load 加载配置
 func Load() *Config {
-	return &Config{
+	// 默认配置
+	config := &Config{
 		Server: ServerConfig{
-			Host:        utils.GetEnv("SERVER_HOST", "0.0.0.0"),
-			Port:        utils.GetEnvInt("SERVICE_PORT", 8082),
-			Environment: utils.GetEnv("ENVIRONMENT", "development"),
-			Version:     utils.GetEnv("SERVICE_VERSION", "1.0.0"),
+			Host:        "0.0.0.0",
+			Port:        8082,
+			Environment: "development",
+			Version:     "1.0.0",
 		},
 		Storage: StorageConfig{
-			DataDir: utils.GetEnv("STORAGE_DATA_DIR", "./data/storage"),
+			DataDir: "./data/storage",
 			Nodes: []NodeConfig{
 				{
 					ID:   "stg1",
-					Path: utils.GetEnv("STORAGE_STG1_PATH", "./data/storage/stg1"),
+					Path: "./data/storage/stg1",
 				},
 				{
 					ID:   "stg2",
-					Path: utils.GetEnv("STORAGE_STG2_PATH", "./data/storage/stg2"),
+					Path: "./data/storage/stg2",
 				},
 				{
 					ID:   "stg3",
-					Path: utils.GetEnv("STORAGE_STG3_PATH", "./data/storage/stg3"),
+					Path: "./data/storage/stg3",
 				},
 			},
 		},
 		Metadata: MetadataConfig{
-			ServiceURL: utils.GetEnv("METADATA_SERVICE_URL", "http://localhost:8081"),
-			Timeout:    utils.GetEnv("METADATA_SERVICE_TIMEOUT", "30s"),
+			ServiceURL: "http://localhost:8081",
+			Timeout:    "30s",
 		},
 		ThirdParty: ThirdPartyConfig{
-			ServiceURL: utils.GetEnv("THIRD_PARTY_SERVICE_URL", "http://localhost:8084"),
-			Timeout:    utils.GetEnv("THIRD_PARTY_SERVICE_TIMEOUT", "30s"),
-			Enabled:    utils.GetEnvBool("THIRD_PARTY_ENABLED", true),
+			ServiceURL: "http://localhost:8084",
+			Timeout:    "30s",
+			Enabled:    true,
 		},
-		LogLevel: utils.GetEnv("LOG_LEVEL", "info"),
+		LogLevel: "info",
 	}
+
+	// 尝试从YAML文件加载配置
+	if err := utils.LoadServiceConfig("storage", config); err != nil {
+		// 如果YAML配置文件不存在，使用默认配置
+		fmt.Printf("Warning: Failed to load YAML config, using defaults: %v\n", err)
+	}
+
+	return config
 }
 
 // Validate 验证配置

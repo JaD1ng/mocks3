@@ -1,221 +1,200 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
-// GetEnv 获取环境变量，如果不存在则返回默认值
-func GetEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+// Config 可观测性配置
+type Config struct {
+	ServiceName    string        `yaml:"service_name"`
+	ServiceVersion string        `yaml:"service_version"`
+	Environment    string        `yaml:"environment"`
+	OTLPEndpoint   string        `yaml:"otlp_endpoint"`
+	LogLevel       string        `yaml:"log_level"`
+	SamplingRatio  float64       `yaml:"sampling_ratio"`
+	ExportInterval time.Duration `yaml:"export_interval"`
 }
 
-// GetEnvInt 获取整数类型的环境变量
-func GetEnvInt(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
+// ObservabilityConfig 通用可观测性配置
+type ObservabilityConfig struct {
+	Environment  string `yaml:"environment"`
+	OTLPEndpoint string `yaml:"otlp_endpoint"`
+	LogLevel     string `yaml:"log_level"`
 }
 
-// GetEnvBool 获取布尔类型的环境变量
-func GetEnvBool(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if boolValue, err := strconv.ParseBool(value); err == nil {
-			return boolValue
-		}
-	}
-	return defaultValue
-}
-
-// GetEnvDuration 获取时间间隔类型的环境变量
-func GetEnvDuration(key string, defaultValue time.Duration) time.Duration {
-	if value := os.Getenv(key); value != "" {
-		if duration, err := time.ParseDuration(value); err == nil {
-			return duration
-		}
-	}
-	return defaultValue
-}
-
-// GetEnvFloat64 获取浮点数类型的环境变量
-func GetEnvFloat64(key string, defaultValue float64) float64 {
-	if value := os.Getenv(key); value != "" {
-		if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-			return floatValue
-		}
-	}
-	return defaultValue
-}
-
-// GetEnvStringSlice 获取字符串切片类型的环境变量（逗号分隔）
-func GetEnvStringSlice(key string, defaultValue []string) []string {
-	if value := os.Getenv(key); value != "" {
-		return strings.Split(value, ",")
-	}
-	return defaultValue
-}
-
-// ServiceConfig 服务配置
-type ServiceConfig struct {
-	ServiceName    string        `json:"service_name"`
-	ServicePort    int           `json:"service_port"`
-	ServiceVersion string        `json:"service_version"`
-	Environment    string        `json:"environment"`
-	LogLevel       string        `json:"log_level"`
-	ConsulAddr     string        `json:"consul_addr"`
-	OTLPEndpoint   string        `json:"otlp_endpoint"`
-	DatabaseURL    string        `json:"database_url"`
-	RedisURL       string        `json:"redis_url"`
-	Timeout        time.Duration `json:"timeout"`
-	MaxRetries     int           `json:"max_retries"`
-}
-
-// LoadServiceConfig 加载服务配置
-func LoadServiceConfig(serviceName string) *ServiceConfig {
-	return &ServiceConfig{
+// LoadObservabilityConfig 从YAML配置文件加载可观测性配置
+func LoadObservabilityConfig(serviceName, configPath string) (*Config, error) {
+	// 默认配置
+	config := &Config{
 		ServiceName:    serviceName,
-		ServicePort:    GetEnvInt("SERVICE_PORT", 8080),
-		ServiceVersion: GetEnv("SERVICE_VERSION", "1.0.0"),
-		Environment:    GetEnv("ENVIRONMENT", "development"),
-		LogLevel:       GetEnv("LOG_LEVEL", "info"),
-		ConsulAddr:     GetEnv("CONSUL_ADDR", "localhost:8500"),
-		OTLPEndpoint:   GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
-		DatabaseURL:    GetEnv("DATABASE_URL", ""),
-		RedisURL:       GetEnv("REDIS_URL", "redis://localhost:6379"),
-		Timeout:        GetEnvDuration("DEFAULT_TIMEOUT", 30*time.Second),
-		MaxRetries:     GetEnvInt("MAX_RETRIES", 3),
+		ServiceVersion: "1.0.0",
+		Environment:    "development",
+		OTLPEndpoint:   "localhost:4318",
+		LogLevel:       "info",
+		SamplingRatio:  1.0,
+		ExportInterval: 30 * time.Second,
 	}
-}
 
-// DatabaseConfig 数据库配置
-type DatabaseConfig struct {
-	Driver          string        `json:"driver"`
-	Host            string        `json:"host"`
-	Port            int           `json:"port"`
-	Username        string        `json:"username"`
-	Password        string        `json:"password"`
-	Database        string        `json:"database"`
-	SSLMode         string        `json:"ssl_mode"`
-	MaxConnections  int           `json:"max_connections"`
-	MaxIdleConns    int           `json:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `json:"conn_max_lifetime"`
-}
+	// 如果配置文件存在，则读取YAML配置
+	if configPath != "" {
+		if _, err := os.Stat(configPath); err == nil {
+			data, err := os.ReadFile(configPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read config file %s: %w", configPath, err)
+			}
 
-// LoadDatabaseConfig 加载数据库配置
-func LoadDatabaseConfig() *DatabaseConfig {
-	return &DatabaseConfig{
-		Driver:          GetEnv("DB_DRIVER", "postgres"),
-		Host:            GetEnv("DB_HOST", "localhost"),
-		Port:            GetEnvInt("DB_PORT", 5432),
-		Username:        GetEnv("DB_USERNAME", "postgres"),
-		Password:        GetEnv("DB_PASSWORD", ""),
-		Database:        GetEnv("DB_DATABASE", "mocks3"),
-		SSLMode:         GetEnv("DB_SSL_MODE", "disable"),
-		MaxConnections:  GetEnvInt("DB_MAX_CONNECTIONS", 25),
-		MaxIdleConns:    GetEnvInt("DB_MAX_IDLE_CONNS", 5),
-		ConnMaxLifetime: GetEnvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute),
+			if err := yaml.Unmarshal(data, config); err != nil {
+				return nil, fmt.Errorf("failed to parse YAML config: %w", err)
+			}
+		}
 	}
-}
 
-// GetDSN 获取数据库连接字符串
-func (dc *DatabaseConfig) GetDSN() string {
-	switch dc.Driver {
-	case "postgres":
-		return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			dc.Host, dc.Port, dc.Username, dc.Password, dc.Database, dc.SSLMode)
-	case "mysql":
-		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
-			dc.Username, dc.Password, dc.Host, dc.Port, dc.Database)
-	case "sqlite3":
-		return dc.Database
-	default:
-		return ""
+	// 设置服务名称（如果配置文件中没有指定）
+	if config.ServiceName == "" {
+		config.ServiceName = serviceName
 	}
-}
 
-// RedisConfig Redis配置
-type RedisConfig struct {
-	Host         string        `json:"host"`
-	Port         int           `json:"port"`
-	Password     string        `json:"password"`
-	Database     int           `json:"database"`
-	PoolSize     int           `json:"pool_size"`
-	MinIdleConns int           `json:"min_idle_conns"`
-	DialTimeout  time.Duration `json:"dial_timeout"`
-	ReadTimeout  time.Duration `json:"read_timeout"`
-	WriteTimeout time.Duration `json:"write_timeout"`
-}
-
-// LoadRedisConfig 加载Redis配置
-func LoadRedisConfig() *RedisConfig {
-	return &RedisConfig{
-		Host:         GetEnv("REDIS_HOST", "localhost"),
-		Port:         GetEnvInt("REDIS_PORT", 6379),
-		Password:     GetEnv("REDIS_PASSWORD", ""),
-		Database:     GetEnvInt("REDIS_DATABASE", 0),
-		PoolSize:     GetEnvInt("REDIS_POOL_SIZE", 10),
-		MinIdleConns: GetEnvInt("REDIS_MIN_IDLE_CONNS", 2),
-		DialTimeout:  GetEnvDuration("REDIS_DIAL_TIMEOUT", 5*time.Second),
-		ReadTimeout:  GetEnvDuration("REDIS_READ_TIMEOUT", 3*time.Second),
-		WriteTimeout: GetEnvDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
+	// 验证配置
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
 	}
+
+	return config, nil
 }
 
-// GetRedisAddr 获取Redis地址
-func (rc *RedisConfig) GetRedisAddr() string {
-	return fmt.Sprintf("%s:%d", rc.Host, rc.Port)
-}
+// Validate 验证可观测性配置
+func (c *Config) Validate() error {
+	if c.ServiceName == "" {
+		return fmt.Errorf("service_name is required")
+	}
+	if c.OTLPEndpoint == "" {
+		return fmt.Errorf("otlp_endpoint is required")
+	}
+	if c.SamplingRatio < 0 || c.SamplingRatio > 1 {
+		return fmt.Errorf("sampling_ratio must be between 0 and 1")
+	}
+	if c.ExportInterval <= 0 {
+		return fmt.Errorf("export_interval must be positive")
+	}
 
-// ParseConfigFromJSON 从JSON解析配置
-func ParseConfigFromJSON(jsonData []byte, config interface{}) error {
-	return json.Unmarshal(jsonData, config)
-}
+	validLogLevels := map[string]bool{
+		"debug": true,
+		"info":  true,
+		"warn":  true,
+		"error": true,
+	}
+	if !validLogLevels[c.LogLevel] {
+		return fmt.Errorf("invalid log_level: %s", c.LogLevel)
+	}
 
-// ConfigToJSON 将配置转换为JSON
-func ConfigToJSON(config interface{}) ([]byte, error) {
-	return json.MarshalIndent(config, "", "  ")
-}
-
-// ValidateConfig 验证配置
-func ValidateConfig(config interface{}) error {
-	// 这里可以添加配置验证逻辑
-	// 例如检查必填字段、格式验证等
 	return nil
 }
 
-// LoadConfigFromFile 从文件加载配置
-func LoadConfigFromFile(filename string, config interface{}) error {
-	data, err := os.ReadFile(filename)
+// LoadConfigFromYAML 通用的YAML配置加载函数
+func LoadConfigFromYAML(configPath string, config any) error {
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return fmt.Errorf("failed to read config file: %w", err)
+		return fmt.Errorf("failed to read config file %s: %w", configPath, err)
 	}
 
-	return ParseConfigFromJSON(data, config)
+	if err := yaml.Unmarshal(data, config); err != nil {
+		return fmt.Errorf("failed to parse YAML config: %w", err)
+	}
+
+	return nil
 }
 
-// SaveConfigToFile 将配置保存到文件
-func SaveConfigToFile(filename string, config interface{}) error {
-	data, err := ConfigToJSON(config)
+// SaveConfigToYAML 将配置保存为YAML文件
+func SaveConfigToYAML(configPath string, config any) error {
+	data, err := yaml.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return os.WriteFile(filename, data, 0644)
+	return os.WriteFile(configPath, data, 0644)
 }
 
-// MergeConfigs 合并配置（环境变量优先）
-func MergeConfigs(defaultConfig, envConfig interface{}) interface{} {
-	// 这里可以实现配置合并逻辑
-	// 简单实现：环境变量配置优先于默认配置
-	return envConfig
+// ServerConfig 通用服务器配置
+type ServerConfig struct {
+	Host string `yaml:"host"`
+	Port string `yaml:"port"`
+}
+
+// DatabaseConfig 通用数据库配置
+type DatabaseConfig struct {
+	Driver          string `yaml:"driver"`
+	DSN             string `yaml:"dsn"`
+	MaxOpenConns    int    `yaml:"max_open_conns"`
+	MaxIdleConns    int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime string `yaml:"conn_max_lifetime"`
+}
+
+// RedisConfig Redis配置
+type RedisConfig struct {
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+}
+
+// StorageConfig 存储配置
+type StorageConfig struct {
+	DataDir string       `yaml:"data_dir"`
+	Nodes   []NodeConfig `yaml:"nodes"`
+}
+
+// NodeConfig 存储节点配置
+type NodeConfig struct {
+	ID   string `yaml:"id"`
+	Path string `yaml:"path"`
+}
+
+// QueueConfig 队列配置
+type QueueConfig struct {
+	Size        int    `yaml:"size"`
+	RedisStream string `yaml:"redis_stream"`
+	WorkerCount int    `yaml:"worker_count"`
+}
+
+// Address 返回服务器地址
+func (s *ServerConfig) Address() string {
+	return fmt.Sprintf("%s:%s", s.Host, s.Port)
+}
+
+// FindConfigFile 查找配置文件
+func FindConfigFile(serviceName string, customPaths ...string) string {
+	configFileName := fmt.Sprintf("%s.yaml", serviceName)
+
+	// 默认搜索路径
+	defaultPaths := []string{
+		fmt.Sprintf("./config/%s", configFileName),
+		fmt.Sprintf("./services/%s/config/%s", serviceName, configFileName),
+		fmt.Sprintf("../../../config/%s", configFileName),
+		fmt.Sprintf("/etc/mocks3/%s", configFileName),
+	}
+
+	// 合并自定义路径和默认路径
+	allPaths := append(customPaths, defaultPaths...)
+
+	for _, path := range allPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return "" // 未找到配置文件
+}
+
+// LoadServiceConfig 通用服务配置加载
+func LoadServiceConfig(serviceName string, config any, customPaths ...string) error {
+	configPath := FindConfigFile(serviceName, customPaths...)
+	if configPath == "" {
+		return fmt.Errorf("config file for service '%s' not found", serviceName)
+	}
+
+	return LoadConfigFromYAML(configPath, config)
 }

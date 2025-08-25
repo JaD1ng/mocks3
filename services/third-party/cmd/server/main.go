@@ -8,9 +8,7 @@ import (
 	"mocks3/services/third-party/internal/repository"
 	"mocks3/services/third-party/internal/service"
 	"mocks3/shared/middleware"
-	logger "mocks3/shared/observability/log"
-	"mocks3/shared/observability/metric"
-	"mocks3/shared/observability/trace"
+	"mocks3/shared/observability"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,22 +22,22 @@ func main() {
 	// 加载配置
 	cfg := config.Load()
 
-	// 初始化日志器
-	logger := logger.NewLogger("third-party-service", logger.LogLevel(cfg.LogLevel))
-
-	// 初始化追踪器
-	tracerProvider, err := trace.NewDefaultTracerProvider("third-party-service")
-	if err != nil {
-		log.Fatalf("Failed to initialize tracer: %v", err)
+	// 初始化统一可观测性
+	obsConfig := &observability.Config{
+		ServiceName:    "third-party-service",
+		ServiceVersion: "1.0.0",
+		Environment:    cfg.Server.Environment,
+		OTLPEndpoint:   "http://localhost:4318",
+		LogLevel:       cfg.LogLevel,
 	}
-	defer tracerProvider.Shutdown(context.Background())
 
-	// 初始化指标收集器
-	metricCollector, err := metric.NewDefaultCollector("third-party-service")
+	obs, err := observability.New(context.Background(), obsConfig)
 	if err != nil {
-		log.Fatalf("Failed to initialize metrics: %v", err)
+		log.Fatalf("Failed to initialize observability: %v", err)
 	}
-	defer metricCollector.Shutdown(context.Background())
+	defer obs.Shutdown(context.Background())
+
+	logger := obs.Logger()
 
 	// 初始化Consul管理器
 	consulManager, err := middleware.NewDefaultConsulManager("third-party-service")
@@ -86,11 +84,8 @@ func main() {
 	// 添加中间件
 	router.Use(gin.Logger())
 	router.Use(middleware.GinRecoveryMiddleware(middleware.DefaultRecoveryConfig()))
-	router.Use(trace.GinMiddleware("third-party-service"))
-
-	// 添加指标中间件
-	metricsMiddleware := metric.NewDefaultMiddlewareConfig(metricCollector)
-	router.Use(metricsMiddleware.GinMiddleware())
+	// 使用统一可观测性中间件
+	router.Use(obs.GinMiddleware())
 
 	// 设置路由
 	thirdPartyHandler.RegisterRoutes(router)
@@ -115,16 +110,17 @@ func main() {
 	})
 
 	// 显示启动信息
-	logger.Info("Starting third-party service", "address", cfg.Server.GetAddress())
+	logger.Info(context.Background(), "Starting third-party service", 
+		observability.String("address", cfg.Server.GetAddress()))
 
 	// 打印数据源信息
 	dataSources, _ := dataSourceRepo.GetAll(ctx)
 	for _, ds := range dataSources {
-		logger.Info("Configured data source",
-			"name", ds.Name,
-			"type", ds.Type,
-			"enabled", ds.Enabled,
-			"priority", ds.Priority)
+		logger.Info(context.Background(), "Configured data source",
+			observability.String("name", ds.Name),
+			observability.String("type", ds.Type),
+			observability.Bool("enabled", ds.Enabled),
+			observability.Int("priority", ds.Priority))
 	}
 
 	// 创建HTTP服务器
@@ -138,7 +134,8 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		logger.Info("Third-party service started", "address", cfg.Server.GetAddress())
+		logger.Info(context.Background(), "Third-party service started", 
+			observability.String("address", cfg.Server.GetAddress()))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -149,7 +146,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down third-party service...")
+	logger.Info(context.Background(), "Shutting down third-party service...")
 
 	// 优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -159,5 +156,5 @@ func main() {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	logger.Info("Third-party service stopped")
+	logger.Info(context.Background(), "Third-party service stopped")
 }

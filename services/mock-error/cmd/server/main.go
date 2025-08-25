@@ -9,9 +9,7 @@ import (
 	"mocks3/services/mock-error/internal/service"
 	"mocks3/shared/middleware"
 	"mocks3/shared/models"
-	logger "mocks3/shared/observability/log"
-	"mocks3/shared/observability/metric"
-	"mocks3/shared/observability/trace"
+	"mocks3/shared/observability"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,22 +28,22 @@ func main() {
 		log.Fatalf("Invalid configuration: %v", err)
 	}
 
-	// 初始化日志器
-	logger := logger.NewLogger("mock-error-service", logger.LogLevel(cfg.LogLevel))
-
-	// 初始化追踪器
-	tracerProvider, err := trace.NewDefaultTracerProvider("mock-error-service")
-	if err != nil {
-		log.Fatalf("Failed to initialize tracer: %v", err)
+	// 初始化统一可观测性
+	obsConfig := &observability.Config{
+		ServiceName:    "mock-error-service",
+		ServiceVersion: "1.0.0",
+		Environment:    cfg.Server.Environment,
+		OTLPEndpoint:   "http://localhost:4318",
+		LogLevel:       cfg.LogLevel,
 	}
-	defer tracerProvider.Shutdown(context.Background())
 
-	// 初始化指标收集器
-	metricCollector, err := metric.NewDefaultCollector("mock-error-service")
+	obs, err := observability.New(context.Background(), obsConfig)
 	if err != nil {
-		log.Fatalf("Failed to initialize metrics: %v", err)
+		log.Fatalf("Failed to initialize observability: %v", err)
 	}
-	defer metricCollector.Shutdown(context.Background())
+	defer obs.Shutdown(context.Background())
+
+	logger := obs.Logger()
 
 	// 初始化Consul管理器
 	var consulManager *middleware.ConsulManager
@@ -101,11 +99,8 @@ func main() {
 	// 添加中间件
 	router.Use(gin.Logger())
 	router.Use(middleware.GinRecoveryMiddleware(middleware.DefaultRecoveryConfig()))
-	router.Use(trace.GinMiddleware("mock-error-service"))
-
-	// 添加指标中间件
-	metricsMiddleware := metric.NewDefaultMiddlewareConfig(metricCollector)
-	router.Use(metricsMiddleware.GinMiddleware())
+	// 使用统一可观测性中间件
+	router.Use(obs.GinMiddleware())
 
 	// 设置路由
 	errorHandler.RegisterRoutes(router)
@@ -140,12 +135,13 @@ func main() {
 	})
 
 	// 显示启动信息
-	logger.Info("Starting mock error service", "address", cfg.Server.GetAddress())
-	logger.Info("Service configuration",
-		"max_rules", cfg.ErrorEngine.MaxRules,
-		"default_probability", cfg.ErrorEngine.DefaultProbability,
-		"enable_statistics", cfg.ErrorEngine.EnableStatistics,
-		"global_probability", cfg.Injection.GlobalProbability)
+	logger.Info(context.Background(), "Starting mock error service", 
+		observability.String("address", cfg.Server.GetAddress()))
+	logger.Info(context.Background(), "Service configuration",
+		observability.Int("max_rules", cfg.ErrorEngine.MaxRules),
+		observability.Float64("default_probability", cfg.ErrorEngine.DefaultProbability),
+		observability.Bool("enable_statistics", cfg.ErrorEngine.EnableStatistics),
+		observability.Float64("global_probability", cfg.Injection.GlobalProbability))
 
 	// 添加一些示例规则（仅在开发环境）
 	if cfg.Server.Environment == "development" {
@@ -163,7 +159,8 @@ func main() {
 
 	// 启动服务器
 	go func() {
-		logger.Info("Mock error service started", "address", cfg.Server.GetAddress())
+		logger.Info(context.Background(), "Mock error service started", 
+			observability.String("address", cfg.Server.GetAddress()))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -174,7 +171,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down mock error service...")
+	logger.Info(context.Background(), "Shutting down mock error service...")
 
 	// 优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -184,12 +181,12 @@ func main() {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	logger.Info("Mock error service stopped")
+	logger.Info(context.Background(), "Mock error service stopped")
 }
 
 // addSampleRules 添加示例规则
-func addSampleRules(ctx context.Context, service *service.ErrorInjectorService, logger *logger.Logger) {
-	logger.Info("Adding sample error injection rules for development")
+func addSampleRules(ctx context.Context, service *service.ErrorInjectorService, logger *observability.Logger) {
+	logger.Info(context.Background(), "Adding sample error injection rules for development")
 
 	// 示例规则1: 存储服务随机错误
 	delay1 := 500 * time.Millisecond
@@ -261,9 +258,13 @@ func addSampleRules(ctx context.Context, service *service.ErrorInjectorService, 
 	rules := []*models.ErrorRule{rule1, rule2, rule3}
 	for _, rule := range rules {
 		if err := service.AddErrorRule(ctx, rule); err != nil {
-			logger.Warn("Failed to add sample rule", "rule_name", rule.Name, "error", err)
+			logger.Warn(ctx, "Failed to add sample rule", 
+				observability.String("rule_name", rule.Name), 
+				observability.String("error", err.Error()))
 		} else {
-			logger.Info("Added sample rule", "rule_name", rule.Name, "enabled", rule.Enabled)
+			logger.Info(ctx, "Added sample rule", 
+				observability.String("rule_name", rule.Name), 
+				observability.Bool("enabled", rule.Enabled))
 		}
 	}
 }

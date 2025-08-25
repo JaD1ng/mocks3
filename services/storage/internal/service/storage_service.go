@@ -7,7 +7,7 @@ import (
 	"mocks3/services/storage/internal/repository"
 	"mocks3/shared/client"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"time"
 )
 
@@ -17,11 +17,11 @@ type StorageService struct {
 	storageManager   *repository.StorageManager
 	metadataClient   *client.MetadataClient
 	thirdPartyClient *client.ThirdPartyClient
-	logger           *log.Logger
+	logger           *observability.Logger
 }
 
 // NewStorageService 创建存储服务
-func NewStorageService(cfg *config.Config, logger *log.Logger) (*StorageService, error) {
+func NewStorageService(cfg *config.Config, logger *observability.Logger) (*StorageService, error) {
 	// 验证配置
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
@@ -37,7 +37,9 @@ func NewStorageService(cfg *config.Config, logger *log.Logger) (*StorageService,
 			return nil, fmt.Errorf("failed to create storage node %s: %w", nodeConfig.ID, err)
 		}
 		storageManager.AddNode(node)
-		logger.Info("Storage node created", "node_id", nodeConfig.ID, "path", nodeConfig.Path)
+		logger.Info(context.Background(), "Storage node created", 
+			observability.String("node_id", nodeConfig.ID), 
+			observability.String("path", nodeConfig.Path))
 	}
 
 	// 创建元数据客户端
@@ -55,9 +57,10 @@ func NewStorageService(cfg *config.Config, logger *log.Logger) (*StorageService,
 			thirdPartyTimeout = 30 * time.Second
 		}
 		thirdPartyClient = client.NewThirdPartyClient(cfg.ThirdParty.ServiceURL, thirdPartyTimeout)
-		logger.Info("Third-party service client initialized", "url", cfg.ThirdParty.ServiceURL)
+		logger.Info(context.Background(), "Third-party service client initialized", 
+			observability.String("url", cfg.ThirdParty.ServiceURL))
 	} else {
-		logger.Info("Third-party service disabled")
+		logger.Info(context.Background(), "Third-party service disabled")
 	}
 
 	return &StorageService{

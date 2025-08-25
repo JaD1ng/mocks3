@@ -6,7 +6,7 @@ import (
 	"mocks3/services/queue/internal/repository"
 	"mocks3/shared/interfaces"
 	"mocks3/shared/models"
-	"mocks3/shared/observability/log"
+	"mocks3/shared/observability"
 	"sync"
 	"time"
 )
@@ -14,7 +14,7 @@ import (
 // QueueService 队列服务实现
 type QueueService struct {
 	repo    *repository.RedisRepository
-	logger  *log.Logger
+	logger  *observability.Logger
 	workers map[string]*Worker
 	mu      sync.RWMutex
 	ctx     context.Context
@@ -25,14 +25,14 @@ type QueueService struct {
 type Worker struct {
 	ID      string
 	service *QueueService
-	logger  *log.Logger
+	logger  *observability.Logger
 	stopCh  chan struct{}
 	running bool
 	mu      sync.RWMutex
 }
 
 // NewQueueService 创建队列服务
-func NewQueueService(repo *repository.RedisRepository, logger *log.Logger) *QueueService {
+func NewQueueService(repo *repository.RedisRepository, logger *observability.Logger) *QueueService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueueService{
@@ -46,7 +46,9 @@ func NewQueueService(repo *repository.RedisRepository, logger *log.Logger) *Queu
 
 // AddTask 添加任务到队列
 func (qs *QueueService) AddTask(ctx context.Context, task *models.Task) error {
-	qs.logger.InfoContext(ctx, "Adding task to queue", "task_id", task.ID, "type", task.Type)
+	qs.logger.Info(ctx, "Adding task to queue", 
+		observability.String("task_id", task.ID), 
+		observability.String("type", task.Type))
 
 	// 设置任务状态和时间戳
 	task.Status = "pending"
@@ -54,21 +56,28 @@ func (qs *QueueService) AddTask(ctx context.Context, task *models.Task) error {
 	task.UpdatedAt = task.CreatedAt
 
 	if err := qs.repo.AddTask(ctx, task); err != nil {
-		qs.logger.ErrorContext(ctx, "Failed to add task", "error", err, "task_id", task.ID)
+		qs.logger.Error(ctx, "Failed to add task", 
+			observability.String("error", err.Error()), 
+			observability.String("task_id", task.ID))
 		return fmt.Errorf("failed to add task: %w", err)
 	}
 
-	qs.logger.InfoContext(ctx, "Task added successfully", "task_id", task.ID, "stream_id", task.StreamID)
+	qs.logger.Info(ctx, "Task added successfully", 
+		observability.String("task_id", task.ID), 
+		observability.String("stream_id", task.StreamID))
 	return nil
 }
 
 // GetTask 获取任务
 func (qs *QueueService) GetTask(ctx context.Context, taskID string) (*models.Task, error) {
-	qs.logger.DebugContext(ctx, "Getting task", "task_id", taskID)
+	qs.logger.Debug(ctx, "Getting task", 
+		observability.String("task_id", taskID))
 
 	task, err := qs.repo.GetTaskStatus(ctx, taskID)
 	if err != nil {
-		qs.logger.WarnContext(ctx, "Task not found", "task_id", taskID, "error", err)
+		qs.logger.Warn(ctx, "Task not found", 
+			observability.String("task_id", taskID), 
+			observability.String("error", err.Error()))
 		return nil, fmt.Errorf("task not found: %w", err)
 	}
 
@@ -77,7 +86,9 @@ func (qs *QueueService) GetTask(ctx context.Context, taskID string) (*models.Tas
 
 // ListTasks 列出任务
 func (qs *QueueService) ListTasks(ctx context.Context, status string, limit int) ([]*models.Task, error) {
-	qs.logger.DebugContext(ctx, "Listing tasks", "status", status, "limit", limit)
+	qs.logger.Debug(ctx, "Listing tasks", 
+		observability.String("status", status), 
+		observability.Int("limit", limit))
 
 	if limit <= 0 {
 		limit = 100
@@ -88,21 +99,24 @@ func (qs *QueueService) ListTasks(ctx context.Context, status string, limit int)
 
 	tasks, err := qs.repo.ListTasks(ctx, status, int64(limit))
 	if err != nil {
-		qs.logger.ErrorContext(ctx, "Failed to list tasks", "error", err)
+		qs.logger.Error(ctx, "Failed to list tasks", 
+			observability.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to list tasks: %w", err)
 	}
 
-	qs.logger.DebugContext(ctx, "Tasks listed", "count", len(tasks))
+	qs.logger.Debug(ctx, "Tasks listed", 
+		observability.Int("count", len(tasks)))
 	return tasks, nil
 }
 
 // GetStats 获取队列统计信息
 func (qs *QueueService) GetStats(ctx context.Context) (map[string]interface{}, error) {
-	qs.logger.DebugContext(ctx, "Getting queue statistics")
+	qs.logger.Debug(ctx, "Getting queue statistics")
 
 	stats, err := qs.repo.GetStats(ctx)
 	if err != nil {
-		qs.logger.ErrorContext(ctx, "Failed to get statistics", "error", err)
+		qs.logger.Error(ctx, "Failed to get statistics", 
+			observability.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get statistics: %w", err)
 	}
 
@@ -126,7 +140,8 @@ func (qs *QueueService) GetStats(ctx context.Context) (map[string]interface{}, e
 
 // StartWorker 启动工作节点
 func (qs *QueueService) StartWorker(ctx context.Context, workerID string) error {
-	qs.logger.InfoContext(ctx, "Starting worker", "worker_id", workerID)
+	qs.logger.Info(ctx, "Starting worker", 
+		observability.String("worker_id", workerID))
 
 	qs.mu.Lock()
 	defer qs.mu.Unlock()
@@ -145,13 +160,15 @@ func (qs *QueueService) StartWorker(ctx context.Context, workerID string) error 
 	qs.workers[workerID] = worker
 	go worker.start()
 
-	qs.logger.InfoContext(ctx, "Worker started", "worker_id", workerID)
+	qs.logger.Info(ctx, "Worker started", 
+		observability.String("worker_id", workerID))
 	return nil
 }
 
 // StopWorker 停止工作节点
 func (qs *QueueService) StopWorker(ctx context.Context, workerID string) error {
-	qs.logger.InfoContext(ctx, "Stopping worker", "worker_id", workerID)
+	qs.logger.Info(ctx, "Stopping worker", 
+		observability.String("worker_id", workerID))
 
 	qs.mu.Lock()
 	defer qs.mu.Unlock()
@@ -164,18 +181,20 @@ func (qs *QueueService) StopWorker(ctx context.Context, workerID string) error {
 	worker.stop()
 	delete(qs.workers, workerID)
 
-	qs.logger.InfoContext(ctx, "Worker stopped", "worker_id", workerID)
+	qs.logger.Info(ctx, "Worker stopped", 
+		observability.String("worker_id", workerID))
 	return nil
 }
 
 // Stop 停止队列服务
 func (qs *QueueService) Stop() error {
-	qs.logger.Info("Stopping queue service")
+	qs.logger.Info(context.Background(), "Stopping queue service")
 
 	// 停止所有工作节点
 	qs.mu.Lock()
 	for id, worker := range qs.workers {
-		qs.logger.Info("Stopping worker", "worker_id", id)
+		qs.logger.Info(context.Background(), "Stopping worker", 
+			observability.String("worker_id", id))
 		worker.stop()
 	}
 	qs.workers = make(map[string]*Worker)
@@ -186,11 +205,12 @@ func (qs *QueueService) Stop() error {
 
 	// 关闭仓库连接
 	if err := qs.repo.Close(); err != nil {
-		qs.logger.Error("Failed to close repository", "error", err)
+		qs.logger.Error(context.Background(), "Failed to close repository", 
+			observability.String("error", err.Error()))
 		return err
 	}
 
-	qs.logger.Info("Queue service stopped")
+	qs.logger.Info(context.Background(), "Queue service stopped")
 	return nil
 }
 
@@ -315,15 +335,18 @@ func (w *Worker) start() {
 	w.running = true
 	w.mu.Unlock()
 
-	w.logger.Info("Worker started", "worker_id", w.ID)
+	w.logger.Info(context.Background(), "Worker started", 
+		observability.String("worker_id", w.ID))
 
 	for {
 		select {
 		case <-w.stopCh:
-			w.logger.Info("Worker stopped", "worker_id", w.ID)
+			w.logger.Info(context.Background(), "Worker stopped", 
+			observability.String("worker_id", w.ID))
 			return
 		case <-w.service.ctx.Done():
-			w.logger.Info("Worker stopping due to service shutdown", "worker_id", w.ID)
+			w.logger.Info(context.Background(), "Worker stopping due to service shutdown", 
+			observability.String("worker_id", w.ID))
 			return
 		default:
 			w.processTasks()
@@ -351,7 +374,9 @@ func (w *Worker) processTasks() {
 	tasks, err := w.service.repo.GetTasks(ctx, w.ID, 5)
 	if err != nil {
 		if err != context.Canceled {
-			w.logger.Error("Failed to get tasks", "worker_id", w.ID, "error", err)
+			w.logger.Error(context.Background(), "Failed to get tasks", 
+				observability.String("worker_id", w.ID), 
+				observability.String("error", err.Error()))
 		}
 		time.Sleep(1 * time.Second)
 		return
